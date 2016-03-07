@@ -1,0 +1,144 @@
+/*
+ * [MS-RDPELE] 2.2.2 Licensing PDU (TS_LICENSING_PDU)
+ * http://msdn.microsoft.com/en-us/library/cc241913.aspx
+ *
+ * 2.2.1.12.1.1 Licensing Preamble [MS-RDPBCGR]
+ * 2.2.1.12.1.2 Licensing Binary Blob [MS-RDPBCGR]
+ * 2.2.2.2 Client New License Request [MS-RDPELE]
+ */
+#include <u.h>
+#include <libc.h>
+#include <draw.h>
+#include "dat.h"
+#include "fns.h"
+
+enum
+{
+	RandomSize=	32,
+
+	PreambleV3=	3,	/* RDP 5.0+ */
+	KeyExRSA=	1,
+
+	SNeedLicense=	1,
+	SHaveChal=	2,
+	SHaveLicense=	3,
+	SNeedRenew=	4,
+	CLicenseInfo=	0x12,
+ 	CNeedLicense=	0x13,
+	CChalResp=	0x15,
+	Notify=	0xFF,
+
+	Brandom=	2,
+	Berror=	4,
+	Bcuser=	15,
+	Bchost=	16,
+
+	ErrCNoLicense=	2,
+
+	TotalAbort=	1,
+	NoTransition=	2,
+};
+
+static void reqlicense(char*,char*);
+static void	senderr(int,int);
+
+void
+scanlicensepdu(uchar* p, uchar* ep)
+{
+	uchar type;
+
+	if(ep-p < 1)
+		sysfatal(Eshort);
+
+	/* type[1] flags[1] size[2] */
+	type = p[0];
+	switch(type){
+	case SNeedLicense:
+		reqlicense(rd.user, rd.local);
+		break;
+	case SHaveChal:
+		fprint(2, "unhandled SHaveChal PDU\n");
+		senderr(ErrCNoLicense, TotalAbort);
+		break;
+	case SNeedRenew:
+	case SHaveLicense:
+	case Notify:
+		rd.licensed = 1;
+		break;
+	}
+}
+
+static void
+reqlicense(char* user, char *host)
+{
+	uchar buf[180], *p, *ep;
+	int nb, ndata, usersize, hostsize;
+
+	usersize = strlen(user)+1;
+	hostsize = strlen(host)+1;
+	ndata = 24+usersize+hostsize+RandomSize+48;
+	nb = sizeof(buf);
+
+	p = prebuf(buf, nb, ndata, 0, Slicensepk);
+	if(p == nil)
+		sysfatal("reqlicense: %r");
+	ep = p+ndata;
+
+	/* 
+	 * type[1] flags[1] size[2]
+	 * kexalg[4] platfid[4] crandom[32]
+	 * premaster[blob] cuser[blob] chost[blob]
+	 * 
+	 * blob := type[2] len[2] data[len]
+	 */
+	p[0] = CNeedLicense;
+	p[1] = PreambleV3;
+	PSHORT(p+2, ndata);
+
+	PLONG(p+4, KeyExRSA);
+	PLONG(p+8, 0);
+	memset(p+12, RandomSize, 0);
+	p += 12+RandomSize;
+
+	PSHORT(p+0, Brandom);
+	PSHORT(p+2, 48);
+	memset(p+4, 48, 0);
+	p += 4+48;
+
+	PSHORT(p+0, Bcuser);
+	PSHORT(p+2, usersize);
+	memcpy(p+4, user, usersize);
+	p+= 4+usersize;
+
+	PSHORT(p+0, Bchost);
+	PSHORT(p+2, hostsize);
+	memcpy(p+4, host, hostsize);
+	p+= 4+hostsize;
+
+	assert(p == ep);
+	writen(rd.fd, buf, p-buf);
+}
+
+static void
+senderr(int errcode, int newstate)
+{
+	uchar buf[512], *p;
+	int nb, ndata;
+
+	nb = sizeof(buf);
+	ndata = 16;
+	p = prebuf(buf, nb, ndata, 0, Slicensepk);
+	if(p == nil)
+		sysfatal("prebuf: %r");
+
+	/* type[1] flags[1] size[2] errcode[4] newstate[4] blob.type[2] blob.len[2] */
+	p[0] = Notify;
+	p[1] = PreambleV3;
+	PSHORT(p+2, ndata);
+	PLONG(p+4, errcode);
+	PLONG(p+8, newstate);
+	PSHORT(p+12, Berror);
+	PSHORT(p+14, 0);
+
+	writen(rd.fd, buf, p-buf);
+}

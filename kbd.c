@@ -106,7 +106,7 @@ struct {
 };
 
 void
-kbdsendscan(int sc, int mod)
+kbdsendscan(Rdp* c, int sc, int mod)
 {
 	long msec;
 	int f;
@@ -118,25 +118,25 @@ kbdsendscan(int sc, int mod)
 
 	msec = time(nil);
 	if(mod != 0)
-		passinput(msec, InputKeycode, 0, mod, 0);
-	passinput(msec, InputKeycode, f|0, sc, 0);
-	passinput(msec, InputKeycode, f|KeyUp, sc, 0);
+		passinput(c, msec, InputKeycode, 0, mod, 0);
+	passinput(c, msec, InputKeycode, f|0, sc, 0);
+	passinput(c, msec, InputKeycode, f|KeyUp, sc, 0);
 	if(mod != 0)
-		passinput(msec, InputKeycode, KeyUp, mod, 0);
+		passinput(c, msec, InputKeycode, KeyUp, mod, 0);
 }
 
 void
-kbdsendrune(Rune r)
+kbdsendrune(Rdp* c, Rune r)
 {
 	long msec;
 
 	msec = time(nil);
-	passinput(msec, InputUnicode, 0, r, 0);
-	passinput(msec, InputUnicode, KeyUp, r, 0);
+	passinput(c, msec, InputUnicode, 0, r, 0);
+	passinput(c, msec, InputUnicode, KeyUp, r, 0);
 }
 
 void
-readkbd(void)
+readkbd(Rdp* c)
 {
 	char buf[256], k[10];
 	int ctlfd, fd, kr, kn, w;
@@ -164,46 +164,46 @@ readkbd(void)
 		if(r < nelem(rune2scan)){
 			sc = rune2scan[r].sc;
 			mod = rune2scan[r].mod;
-			kbdsendscan(sc, mod);
+			kbdsendscan(c, sc, mod);
 			continue;
 		}
 
 		switch(r){
 		case Kins:
-			kbdsendscan(Sins, 0);
+			kbdsendscan(c, Sins, 0);
 			break;
 		case Kdel:
-			kbdsendscan(Sdel, 0);
+			kbdsendscan(c, Sdel, 0);
 			break;
 		case Khome:
-			kbdsendscan(Shome, 0);
+			kbdsendscan(c, Shome, 0);
 			break;
 		case Kend:
-			kbdsendscan(Send, 0);
+			kbdsendscan(c, Send, 0);
 			break;
 		case Kpgup:
-			kbdsendscan(Spgup, 0);
+			kbdsendscan(c, Spgup, 0);
 			break;
 		case Kpgdown:
-			kbdsendscan(Spgdown, 0);
+			kbdsendscan(c, Spgdown, 0);
 			break;
 		case Kup:
-			kbdsendscan(Sup, 0);
+			kbdsendscan(c, Sup, 0);
 			break;
 		case Kdown:
-			kbdsendscan(Sdown,0 );
+			kbdsendscan(c, Sdown,0 );
 			break;
 		case Kleft:
-			kbdsendscan(Sleft, 0);
+			kbdsendscan(c, Sleft, 0);
 			break;
 		case Kright:
-			kbdsendscan(Sright, 0);
+			kbdsendscan(c, Sright, 0);
 			break;
 		case Kbrk:
 			exits("interrupt");
 			break;
 		case Kprint:
-			kbdsendscan(Sprint, 0);
+			kbdsendscan(c, Sprint, 0);
 			break;
 		case KF|1:
 		case KF|2:
@@ -215,16 +215,16 @@ readkbd(void)
 		case KF|8:
 		case KF|9:
 		case KF|10:
-			kbdsendscan(SF1+r-(KF|1), 0);
+			kbdsendscan(c, SF1+r-(KF|1), 0);
 			break;
 		case KF|11:
-			kbdsendscan(SF11, 0);
+			kbdsendscan(c, SF11, 0);
 			break;
 		case KF|12:
-			kbdsendscan(SF12, 0);
+			kbdsendscan(c, SF12, 0);
 			break;
 		default:
-			kbdsendrune(r);
+			kbdsendrune(c, r);
 			break;
 		}
 	}

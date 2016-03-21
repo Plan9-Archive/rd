@@ -23,9 +23,7 @@ enum
 	SHaveChal=	2,
 	SHaveLicense=	3,
 	SNeedRenew=	4,
-	CLicenseInfo=	0x12,
  	CNeedLicense=	0x13,
-	CChalResp=	0x15,
 	Notify=	0xFF,
 
 	Brandom=	2,
@@ -39,106 +37,118 @@ enum
 	NoTransition=	2,
 };
 
-static void reqlicense(char*,char*);
-static void	senderr(int,int);
-
-void
-scanlicensepdu(uchar* p, uchar* ep)
+int
+getlicensemsg(Msg* m, uchar* b, uint nb)
 {
-	uchar type;
+	uint type;
 
-	if(ep-p < 1)
+	if(nb < 1)
 		sysfatal(Eshort);
 
 	/* type[1] flags[1] size[2] */
-	type = p[0];
+	type = b[0];
 	switch(type){
+	default:
+		werrstr("unhandled license packet %ud", type);
+		m->type = 0;
+		return -1;
 	case SNeedLicense:
-		reqlicense(rd.user, rd.local);
+		m->type = Lneedlicense;
 		break;
 	case SHaveChal:
-		fprint(2, "unhandled SHaveChal PDU\n");
-		senderr(ErrCNoLicense, TotalAbort);
+		m->type = Lhavechal;
 		break;
 	case SNeedRenew:
 	case SHaveLicense:
 	case Notify:
-		rd.licensed = 1;
+		m->type = Ldone;
 		break;
+	}
+	return nb;
+}
+
+int
+sizelicensemsg(Msg* m)
+{
+	int usersize, hostsize;
+
+	switch(m->type){
+	default:
+		werrstr("sizelicensemsg: bad message type");
+		return -1;
+	case Lreq:
+		usersize = strlen(m->user)+1;
+		hostsize = strlen(m->sysname)+1;
+		return 24+usersize+hostsize+RandomSize+48;
+		break;
+	case Lnolicense:
+		return 16;
 	}
 }
 
-static void
-reqlicense(char* user, char *host)
+int
+putlicensemsg(uchar* buf, uint nb, Msg* m)
 {
-	uchar buf[180], *p, *ep;
-	int nb, ndata, usersize, hostsize;
+	uchar *p, *ep;
+	int ndata, usersize, hostsize;
+	int errcode, newstate;
 
-	usersize = strlen(user)+1;
-	hostsize = strlen(host)+1;
-	ndata = 24+usersize+hostsize+RandomSize+48;
-	nb = sizeof(buf);
+	p = buf;
+	ep = buf+nb;
+	ndata = nb;
 
-	p = prebuf(buf, nb, ndata, 0, Slicensepk);
-	if(p == nil)
-		sysfatal("reqlicense: %r");
-	ep = p+ndata;
+	switch(m->type){
+	default:
+		werrstr("putlicensemsg: bad message type");
+		return -1;
+	case Lreq:	
+		usersize = strlen(m->user)+1;
+		hostsize = strlen(m->sysname)+1;
 
-	/* 
-	 * type[1] flags[1] size[2]
-	 * kexalg[4] platfid[4] crandom[32]
-	 * premaster[blob] cuser[blob] chost[blob]
-	 * 
-	 * blob := type[2] len[2] data[len]
-	 */
-	p[0] = CNeedLicense;
-	p[1] = PreambleV3;
-	PSHORT(p+2, ndata);
+		/* 
+		 * type[1] flags[1] size[2] kexalg[4] platfid[4] crandom[32]
+		 * premaster[blob] cuser[blob] chost[blob]
+		 * (blob := type[2] len[2] data[len])
+		 */
+		p[0] = CNeedLicense;
+		p[1] = PreambleV3;
+		PSHORT(p+2, ndata);
+		PLONG(p+4, KeyExRSA);
+		PLONG(p+8, 0);
+		memset(p+12, RandomSize, 0);
+		p += 12+RandomSize;
+	
+		PSHORT(p+0, Brandom);
+		PSHORT(p+2, 48);
+		memset(p+4, 48, 0);
+		p += 4+48;
 
-	PLONG(p+4, KeyExRSA);
-	PLONG(p+8, 0);
-	memset(p+12, RandomSize, 0);
-	p += 12+RandomSize;
+		PSHORT(p+0, Bcuser);
+		PSHORT(p+2, usersize);
+		memcpy(p+4, m->user, usersize);
+		p+= 4+usersize;
+	
+		PSHORT(p+0, Bchost);
+		PSHORT(p+2, hostsize);
+		memcpy(p+4, m->sysname, hostsize);
+		p+= 4+hostsize;
+		break;
 
-	PSHORT(p+0, Brandom);
-	PSHORT(p+2, 48);
-	memset(p+4, 48, 0);
-	p += 4+48;
+	case Lnolicense:
+		errcode = ErrCNoLicense;
+		newstate = TotalAbort;
 
-	PSHORT(p+0, Bcuser);
-	PSHORT(p+2, usersize);
-	memcpy(p+4, user, usersize);
-	p+= 4+usersize;
-
-	PSHORT(p+0, Bchost);
-	PSHORT(p+2, hostsize);
-	memcpy(p+4, host, hostsize);
-	p+= 4+hostsize;
-
+		/* type[1] flags[1] size[2] errcode[4] newstate[4] blob.type[2] blob.len[2] ... */
+		p[0] = Notify;
+		p[1] = PreambleV3;
+		PSHORT(p+2, ndata);
+		PLONG(p+4, errcode);
+		PLONG(p+8, newstate);
+		PSHORT(p+12, Berror);
+		PSHORT(p+14, 0);
+		break;
+	}
 	assert(p == ep);
-	writen(rd.fd, buf, p-buf);
+	return p-buf;
 }
 
-static void
-senderr(int errcode, int newstate)
-{
-	uchar buf[512], *p;
-	int nb, ndata;
-
-	nb = sizeof(buf);
-	ndata = 16;
-	p = prebuf(buf, nb, ndata, 0, Slicensepk);
-	if(p == nil)
-		sysfatal("prebuf: %r");
-
-	/* type[1] flags[1] size[2] errcode[4] newstate[4] blob.type[2] blob.len[2] */
-	p[0] = Notify;
-	p[1] = PreambleV3;
-	PSHORT(p+2, ndata);
-	PLONG(p+4, errcode);
-	PLONG(p+8, newstate);
-	PSHORT(p+12, Berror);
-	PSHORT(p+14, 0);
-
-	writen(rd.fd, buf, p-buf);
-}

@@ -35,7 +35,7 @@ ishidden(void)
 }
 
 void
-eresized(int)
+eresized(Rdp* c, int)
 {
 	int fd;
 	Point d;
@@ -45,8 +45,7 @@ eresized(int)
 		sysfatal("resize failed: %r");
 
 	/* lifted from /sys/src/cmd/vnc/wsys.c */
-	d = addpt(rd.dim, Pt(2*Borderwidth, 2*Borderwidth));
-	rd.dim.x = (rd.dim.x + 3) & ~3;	/* ensure width divides by 4 */
+	d = addpt(Pt(c->xsz, c->ysz), Pt(2*Borderwidth, 2*Borderwidth));
 	if(d.x < Dx(screen->r) || d.y < Dy(screen->r)){
 		fd = open("/dev/wctl", OWRITE);
 		if(fd >= 0){
@@ -54,8 +53,8 @@ eresized(int)
 			close(fd);
 		}
 	}
-	turnupdates(0);
-	turnupdates(!ishidden());
+	turnupdates(c, 0);
+	turnupdates(c, !ishidden());
 	unlockdisplay(display);
 }
 void
@@ -113,7 +112,7 @@ getsnarf(int *pnb)
 
 /* lifted from /sys/src/cmd/vnc/wsys.c */
 void
-pollsnarf(void)
+pollsnarf(Rdp* c)
 {
 	Dir *dir;
 
@@ -130,7 +129,7 @@ pollsnarf(void)
 		if(dir == nil)	/* old drawterm */
 			continue;
 		if(dir->qid.vers > snarfvers){
-			clipannounce();
+			clipannounce(c);
 			snarfvers = dir->qid.vers;
 		}
 		free(dir);

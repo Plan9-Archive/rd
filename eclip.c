@@ -12,26 +12,19 @@
 #include "fns.h"
 
 static char	cliprdr[]				= "CLIPRDR";
-static void		cliprequest(uint);
 
 enum
 {
-	CFunicode	= 13,
-};
+	CFunicode=	13,
 
-enum
-{
-	FlagOk			= (1<<0),
-	FlagErr			= (1<<1),
-};
+	FlagOk=	(1<<0),
+	FlagErr=	(1<<1),
 
-enum
-{
-	ClipReady			= 1,
-	ClipAnnounce		= 2,
-	ClipNoted			= 3,
-	ClipReq			= 4,
-	ClipResp			= 5,
+	ClipReady=	1,
+	ClipAnnounce=	2,
+	ClipNoted=	3,
+	ClipReq=	4,
+	ClipResp=	5,
 };
 
 typedef	struct	Clipmsg Clipmsg;
@@ -43,16 +36,15 @@ struct Clipmsg
 	uchar	*data;
 	uint		ndata;
 };
-
 static	int	clipputmsg(Clipmsg*,uchar*,int);
 static	int	clipgetmsg(Clipmsg*,uchar*,int);
 
-static	void	clipattached(Clipmsg*);
-static	void	clipnoted(Clipmsg*);
-static	void	cliprequested(Clipmsg*);
-static	void	clipprovided(Clipmsg*);
+static	void	clipattached(Rdp*,Clipmsg*);
+static	void	clipnoted(Rdp*,Clipmsg*);
+static	void	cliprequested(Rdp*,Clipmsg*);
+static	void	clipprovided(Rdp*,Clipmsg*);
 
-static	void	(*clipcall[])(Clipmsg*) =
+static	void	(*clipcall[])(Rdp*,Clipmsg*) =
 {
 	[ClipReady]=		clipattached,
 	[ClipAnnounce]=	clipnoted,
@@ -60,12 +52,14 @@ static	void	(*clipcall[])(Clipmsg*) =
 	[ClipResp]=		clipprovided,
 };
 
+static void		cliprequest(Rdp*,uint);
+
 void
-clipvcfn(uchar* p, uchar* ep)
+clipvcfn(Rdp* c, uchar* p, uint nb)
 {
 	Clipmsg tx;
 
-	if(clipgetmsg(&tx, p, ep-p) < 0)
+	if(clipgetmsg(&tx, p, nb) < 0)
 		return;
 	if(tx.flags&FlagErr)
 		return;
@@ -73,11 +67,11 @@ clipvcfn(uchar* p, uchar* ep)
 		return;
 	if(clipcall[tx.type] == nil)
 		return;
-	clipcall[tx.type](&tx);
+	clipcall[tx.type](c, &tx);
 }
 
 void
-clipannounce(void)
+clipannounce(Rdp* c)
 {
 	Clipmsg r;
 	uchar a[44];
@@ -87,12 +81,12 @@ clipannounce(void)
 	r.flags = 0;
 	r.fmtid = CFunicode;
 	n = clipputmsg(&r, a, sizeof(a));
-	if(sendvc(cliprdr, a, n) < 0)
+	if(sendvc(c, cliprdr, a, n) < 0)
 		fprint(2, "clipannounce: %r\n");
 }
 
 static void
-cliprequest(uint fmtid)
+cliprequest(Rdp* c, uint fmtid)
 {
 	Clipmsg r;
 	uchar a[12];
@@ -102,35 +96,35 @@ cliprequest(uint fmtid)
 	r.flags = 0;
 	r.fmtid = fmtid;
 	n = clipputmsg(&r, a, sizeof(a));
-	if(sendvc(cliprdr, a, n) < 0)
+	if(sendvc(c, cliprdr, a, n) < 0)
 		fprint(2, "cliprequest: %r\n");
 }
 
 static void
-clipattached(Clipmsg*)
+clipattached(Rdp* c, Clipmsg*)
 {
-	clipannounce();
+	clipannounce(c);
 }
 
 static void
-clipnoted(Clipmsg *m)
+clipnoted(Rdp* c, Clipmsg *m)
 {
 	Clipmsg r;
 	uchar a[8];
 	int n;
 
 	if(m->fmtid)
-		cliprequest(m->fmtid);
+		cliprequest(c, m->fmtid);
 
 	r.type = ClipNoted;
 	r.flags = FlagOk;
 	n = clipputmsg(&r, a, sizeof(a));
-	if(sendvc(cliprdr, a, n) < 0)
+	if(sendvc(c, cliprdr, a, n) < 0)
 		fprint(2, "clipnoted: %r\n");
 }
 
 static void
-cliprequested(Clipmsg *m)
+cliprequested(Rdp* c, Clipmsg *m)
 {
 	Clipmsg r;
 	char* s;
@@ -158,13 +152,13 @@ cliprequested(Clipmsg *m)
 	r.data = b+8;
 	r.ndata = nb;
 	n = clipputmsg(&r, b, nb+8);
-	if(sendvc(cliprdr, b, n) < 0)
+	if(sendvc(c, cliprdr, b, n) < 0)
 		fprint(2, "cliprequested: %r\n");
 	free(b);
 }
 
 static void
-clipprovided(Clipmsg *m)
+clipprovided(Rdp*, Clipmsg *m)
 {
 	char *s;
 	int n, ns;

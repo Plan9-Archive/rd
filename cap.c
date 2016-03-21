@@ -4,81 +4,162 @@
 #include "dat.h"
 #include "fns.h"
 
-/* 2.2.7.1.1 General Capability Set (TS_GENERAL_CAPABILITYSET) */
-void
-scangencaps(uchar* p, uchar* ep)
+enum /* 2.2.7 Capability Sets; T.128 */
 {
-	int extraFlags, canrefresh, cansupress;
+	CapGeneral=	1,
+	CapBitmap=	2,
+	CapOrder=	3,
+	CapPointer=	8,
+	CapBitcache2=	19,
+	CapInput=	13,
+	CapSound=	12,
+	CapGlyph=	16,
 
-	if(p+22>ep)
-		sysfatal(Eshort);
-	extraFlags  = GSHORT(p+14);
-	USED(extraFlags);
-	canrefresh = p[22];
-	cansupress = p[23];
-	if(!canrefresh)
-		sysfatal("server lacks support for Refresh Rect PDU");
-	if(!cansupress)
-		sysfatal("server lacks support for Suppress Output PDU");
-}
+	/* 2.2.7.1.1 General Capability Set (TS_GENERAL_CAPABILITYSET) */
+	CanFastpath=	0x0001,
+	NoBitcomphdr=	0x0400,
+	CanLongcred=	0x0004,
+};
 
-/* 2.2.7.1.2 Bitmap Capability Set (TS_BITMAP_CAPABILITYSET) */
-void
-scanbitcaps(uchar* p, uchar* ep)
+static int	putncap(uchar*,uint,Caps*);
+static int	putbitcaps(uchar*,uint,Caps*);
+static int	putgencaps(uchar*,uint,Caps*);
+static int	putordcaps(uchar*,uint,Caps*);
+static int	putbc2caps(uchar*,uint,Caps*);
+static int	putptrcaps(uchar*,uint,Caps*);
+static int	putinpcaps(uchar*,uint,Caps*);
+static int	putsndcaps(uchar*,uint,Caps*);
+static int	putglycaps(uchar*,uint,Caps*);
+
+static
+struct {
+	int	size;
+	int	(*putcap)(uchar*,uint,Caps*);
+} ctab[]=
 {
-	int w, h, depth;
+	{ 4,	putncap },
+	{ 24,	putgencaps },
+	{ 30,	putbitcaps },
+	{ 88,	putordcaps },
+	{ 40,	putbc2caps },
+	{ 8,	putptrcaps },
+	{ 88,	putinpcaps },
+	{ 8,	putsndcaps },
+	{ 52,	putglycaps },
+};
 
-	if(p+16> ep)
-		sysfatal(Eshort);
-	depth = GSHORT(p+4);
-	w = GSHORT(p+12);
-	h = GSHORT(p+14);
-
-	if(depth != rd.depth){
-		rd.depth = depth;
-		switch(depth){
-		case 8:
-			rd.chan = CMAP8;
-			break;
-		case 15:
-			rd.chan = RGB15;
-			break;
-		case 16:
-			rd.chan = RGB16;
-			break;
-		case 24:
-			rd.chan = RGB24;
-			break;
-		case 32:
-			rd.chan = XRGB32;
-			break;
-		default:
-			sysfatal("Unsupported server color depth: %uhd\n", depth);
-		}
-	}
-	if(w != rd.dim.x || h != rd.dim.y){
-		rd.dim.x = w;
-		rd.dim.y = h;
-		rd.dim.x = (rd.dim.x + 3) & ~3;	/* ensure width divides by 4 */
-	}
-}
-
-/* 2.2.7.1.1 General Capability Set (TS_GENERAL_CAPABILITYSET) */
-uchar*
-putgencaps(uchar *p, uchar *ep)
+int
+getcaps(Caps* caps, uchar* a, uint nb)
 {
+	int ncap, type, len;
+	uchar *p, *ep;
 	int extraFlags;
 
+	p = a;
+	ep = p+nb;
+	memset(caps, sizeof(*caps), 0);
+
+	ncap = GSHORT(p);
+	p += 4;
+	for(; ncap>0 && p+4<ep; ncap--){
+		type = GSHORT(p+0);
+		len = GSHORT(p+2);
+		if(p+len > ep){
+			werrstr("bad length in server's capability set");
+			return -1;
+		}
+		switch(type){
+		case CapGeneral:
+			/* 2.2.7.1.1 General Capability Set (TS_GENERAL_CAPABILITYSET) */
+			if(len < 24){
+				werrstr(Eshort);
+				return -1;
+			}
+			caps->general = 1;
+			extraFlags  = GSHORT(p+14);
+			caps->canrefresh = p[22];
+			caps->cansupress = p[23];
+			USED(extraFlags);
+			break;
+		case CapBitmap:
+			/* 2.2.7.1.2 Bitmap Capability Set (TS_BITMAP_CAPABILITYSET) */
+			if(len < 16){
+				werrstr(Eshort);
+				return -1;
+			}
+			caps->bitmap = 1;
+			caps->depth = GSHORT(p+4);
+			caps->width = GSHORT(p+12);
+			caps->height = GSHORT(p+14);
+			break;
+		}
+		p += len;
+	}
+	return p-a;
+}
+
+int
+sizecaps(Caps*)
+{
+	int i, n;
+
+	n = 0;
+	for(i = 0; i < nelem(ctab); i++)
+		n += ctab[i].size;
+	return n;
+}
+
+int
+putcaps(uchar* a, uint nb, Caps* caps)
+{
+	uchar *p, *ep;
+	int i, n;
+
+	p = a;
+	ep = a+nb;
+
+	for(i = 0; i < nelem(ctab); i++){
+		n = ctab[i].putcap(p, ep-p, caps);
+		if(n < 0)
+			return -1;
+		p += n;
+	}
+	return p-a;
+}
+
+static int
+putncap(uchar *p, uint nb, Caps*)
+{
+	int ncap;
+	
+	ncap = 8;
+	
+	if(nb<4){
+		werrstr(Eshort);
+		return -1;
+	}
+	PSHORT(p, ncap);
+	PSHORT(p+2, 0);
+	return 4;
+}
+
+/* 2.2.7.1.1 General Capability Set (TS_GENERAL_CAPABILITYSET) */
+static int
+putgencaps(uchar *p, uint nb, Caps*)
+{
+	int extraFlags;
+	
 	extraFlags = 0
 		| CanFastpath
 		| NoBitcomphdr
 		| CanLongcred
-	;
-
-	if(p+24>ep)
-		sysfatal(Eshort);
+		;
+	if(nb<24){
+		werrstr(Eshort);
+		return -1;
+	}
 	PSHORT(p+0, CapGeneral);
-	PSHORT(p+2, GENCAPSIZE);
+	PSHORT(p+2, 24);	// size
 	PSHORT(p+4, 0);	// OSMAJORTYPE_UNSPECIFIED
 	PSHORT(p+6, 0);	// OSMINORTYPE_UNSPECIFIED
 	PSHORT(p+8, 0x200);	// TS_CAPS_PROTOCOLVERSION
@@ -89,24 +170,26 @@ putgencaps(uchar *p, uchar *ep)
 	PSHORT(p+20, 0);	// generalCompressionLevel
 	p[22] = 0;  	// refreshRectSupport - server only
 	p[23] = 0;  	// suppressOutputSupport - server only
-	return p+24;
+	return 24;
 }
 
 
 /* 2.2.7.1.2 Bitmap Capability Set (TS_BITMAP_CAPABILITYSET) */
-uchar*
-putbitcaps(uchar *p, uchar *ep)
+static int
+putbitcaps(uchar *p, uint nb, Caps* caps)
 {
-	if(p+30>ep)
-		sysfatal(Eshort);
+	if(nb < 30){
+		werrstr(Eshort);
+		return -1;
+	}
 	PSHORT(p+0, CapBitmap);
-	PSHORT(p+2, BITCAPSIZE);
-	PSHORT(p+4, rd.depth);	// preferredBitsPerPixel
+	PSHORT(p+2, 30);	// size
+	PSHORT(p+4, caps->depth);	// preferredBitsPerPixel
 	PSHORT(p+6, 1);	// receive1BitPerPixel
 	PSHORT(p+8, 1);	// receive4BitsPerPixel
 	PSHORT(p+10, 1);	// receive8BitsPerPixel
-	PSHORT(p+12, rd.dim.x);	// desktopWidth
-	PSHORT(p+14, rd.dim.y);	// desktopHeight
+	PSHORT(p+12, caps->xsz);	// desktopWidth
+	PSHORT(p+14, caps->ysz);	// desktopHeight
 	PSHORT(p+16, 0);	// pad2octets 
 	PSHORT(p+18, 1);	// desktopResizeFlag 
 	PSHORT(p+20, 1);	// bitmapCompressionFlag 
@@ -114,12 +197,12 @@ putbitcaps(uchar *p, uchar *ep)
 	PSHORT(p+24, 1);	// drawingFlags 
 	PSHORT(p+26, 1);	// multipleRectangleSupport
 	PSHORT(p+26, 0);	// pad2octetsB
-	return p+30;
+	return 30;
 }
 
 /* 2.2.7.1.3 Order Capability Set (TS_ORDER_CAPABILITYSET) */
-uchar*
-putordcaps(uchar *p, uchar *ep)
+static int
+putordcaps(uchar *p, uint nb, Caps*)
 {
 	ushort orderFlags;
 	enum
@@ -135,11 +218,13 @@ putordcaps(uchar *p, uchar *ep)
 		| ZEROBOUNDSDELTASSUPPORT
 		| COLORINDEXSUPPORT
 		| SOLIDPATTERNBRUSHONLY
-	;
-	if(p+88>ep)
-		sysfatal(Eshort);
+		;
+	if(nb<88){
+		werrstr(Eshort);
+		return -1;
+	}
 	PSHORT(p+0, CapOrder);
-	PSHORT(p+2, ORDCAPSIZE);
+	PSHORT(p+2, 88);	// size
 	memset(p+4, 16, 0);	// terminalDescriptor
 	PLONG(p+20, 0);	// pad4octetsA 
 	PSHORT(p+24, 1);	// desktopSaveXGranularity 
@@ -157,18 +242,20 @@ putordcaps(uchar *p, uchar *ep)
 	PSHORT(p+82, 0);	// pad2octetsD
 	PSHORT(p+84, 0xe4);	// textANSICodePage
 	PSHORT(p+86, 0x04);	// pad2octetsE
-	return p+88;
+	return 88;
 }
 
 /* 2.2.7.1.4 Bitmap Cache Capability Set (TS_BITMAPCACHE_CAPABILITYSET) */
 /* 2.2.7.1.4.2 Revision 2 (TS_BITMAPCACHE_CAPABILITYSET_REV2) */
-uchar*
-putbc2caps(uchar *p, uchar *ep)
+static int
+putbc2caps(uchar *p, uint nb, Caps*)
 {
-	if(p+40>ep)
-		sysfatal(Eshort);
+	if(nb<40){
+		werrstr(Eshort);
+		return -1;
+	}
 	PSHORT(p+0, CapBitcache2);
-	PSHORT(p+2, BCACAPSIZE);
+	PSHORT(p+2, 40);	// size
 	PSHORT(p+4, 0);	// CacheFlags (2 bytes):  
 	p[6] = 0;	// pad2
 	p[7] = 3;	// NumCellCaches
@@ -178,25 +265,27 @@ putbc2caps(uchar *p, uchar *ep)
 	PLONG(p+20, 0);	// BitmapCache3CellInfo
 	PLONG(p+24, 0);	// BitmapCache4CellInfo
 	memset(p+28, 12, 0); // Pad3
-	return p+40;
+	return 40;
 }
 
 /* 2.2.7.1.5 Pointer Capability Set (TS_POINTER_CAPABILITYSET) */
-uchar*
-putptrcaps(uchar *p, uchar *ep)
+static int
+putptrcaps(uchar *p, uint nb, Caps*)
 {
-	if(p+8>ep)
-		sysfatal(Eshort);
+	if(nb<8){
+		werrstr(Eshort);
+		return -1;
+	}
 	PSHORT(p+0, CapPointer);
-	PSHORT(p+2, PTRCAPSIZE);
+	PSHORT(p+2, 8);	// size
 	PSHORT(p+4, 0);	// colorPointerFlag  
 	PSHORT(p+6, 20);	// colorPointerCacheSize 
-	return p+8;
+	return 8;
 }
 
 /* 2.2.7.1.6 Input Capability Set (TS_INPUT_CAPABILITYSET) */
-uchar*
-putinpcaps(uchar *p, uchar *ep)
+static int
+putinpcaps(uchar *p, uint nb, Caps*)
 {
 	long inputFlags;
 	enum
@@ -209,14 +298,15 @@ putinpcaps(uchar *p, uchar *ep)
 	};
 
 	inputFlags = 0
-	| INPUT_FLAG_SCANCODES
-	| INPUT_FLAG_UNICODE
-	;
-
-	if(p+88>ep)
-		sysfatal(Eshort);
+		| INPUT_FLAG_SCANCODES
+		| INPUT_FLAG_UNICODE
+		;
+	if(nb<88){
+		werrstr(Eshort);
+		return -1;
+	}
 	PSHORT(p+0, CapInput);
-	PSHORT(p+2, INPCAPSIZE);
+	PSHORT(p+2, 88);	// size
 	PSHORT(p+4, inputFlags);	// inputFlags
 	PSHORT(p+6, 0);	// pad2octetsA
 
@@ -226,21 +316,23 @@ putinpcaps(uchar *p, uchar *ep)
 	PLONG(p+16, 0);	// keyboardSubType
 	PLONG(p+20, 12);	// keyboardFunctionKey
 	memset(p+24, 64, 0);	// imeFileName
-	return p+88;
+	return 88;
 }
 
 /* 2.2.7.1.8 Glyph Cache Capability Set (TS_GLYPHCACHE_CAPABILITYSET) */
-uchar*
-putglycaps(uchar* p, uchar* ep)
+static int
+putglycaps(uchar *p, uint nb, Caps*)
 {
 	enum {
 		GLYPH_SUPPORT_NONE= 0,
 	};
 
-	if(p+52>ep)
-		sysfatal(Eshort);
+	if(nb<52){
+		werrstr(Eshort);
+		return -1;
+	}
 	PSHORT(p+0, CapGlyph);
-	PSHORT(p+2, GLYCAPSIZE);
+	PSHORT(p+2, 52);	// size
 	PLONG(p+4, 0x0400fe);	// GlyphCache 0
 	PLONG(p+8, 0x0400fe);	// GlyphCache 1
 	PLONG(p+12, 0x0800fe);	// GlyphCache 2
@@ -254,18 +346,20 @@ putglycaps(uchar* p, uchar* ep)
 	PLONG(p+44, 0x01000100);	// FragCache 
 	PSHORT(p+48, GLYPH_SUPPORT_NONE);	// GlyphSupportLevel
 	PSHORT(p+50, 0);	// pad2octets 
-	return p+52;
+	return 52;
 }
 
 /* 2.2.7.1.11 Sound Capability Set (TS_SOUND_CAPABILITYSET) */
-uchar*
-putsndcaps(uchar* p, uchar* ep)
+static int
+putsndcaps(uchar *p, uint nb, Caps*)
 {
-	if(p+8>ep)
-		sysfatal(Eshort);
+	if(nb<8){
+		werrstr(Eshort);
+		return -1;
+	}
 	PSHORT(p+0, CapSound);
-	PSHORT(p+2, SNDCAPSIZE);
+	PSHORT(p+2, 8);	// size
 	PSHORT(p+4, 0);	// soundFlags
 	PSHORT(p+6, 0);	// pad2octetsA
-	return p+8;
+	return 8;
 }

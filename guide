@@ -3,10 +3,20 @@ cpu -c 'objtype='$cputype mk
 window -r 2 44 1026 812
 kill 5.out | rc
 src -s memcpy 5.out
-g 
+g rdphandshake
 h2d 
 d2h 
 dat.h fns.h mkfile /dist/replica/rd.proto
 diff -r . /sys/src/cmd/rd | sed '/^diff/!d; s//cp /'
 wc [~_]*.[ch] | sort -rn
 /n/dump/2015/0108/386/bin/rd	# legacy security
+B *.[ch]
+Edit X!/rd/.*\.[ch]! ,s/scanvcpdu/scanvcdata/g
+hg pull -u
+hg log -vl5
+hg diff
+hg ci -m'move remaining parsing from scanimgupdate to getshare[TF]'
+hg log -vl2
+hg up -rtip
+hg push
+dat.h

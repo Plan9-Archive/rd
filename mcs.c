@@ -1,4 +1,3 @@
-/* T.122 MCS, T.124 Generic Conference Control, T.125 MCS protocol  */
 #include <u.h>
 #include <libc.h>
 #include <draw.h>
@@ -14,20 +13,6 @@ enum
 	TagEnum		= 10,
 	TagSeq		= 16,		/* also TagSeq OF */
 
-	/* ASN.1 tag numbers for MCS types */
-	Mci=		101,		/* Connect Initial */
-	Mcr=	102,		/* Connect Response */
-	Medr=	1,		/* Erect Domain Request */
-	Maur=	10,		/* Attach User Request */
-	Mauc=	11,		/* Attach User Confirm */
-	Mcjr=	14,		/* Channel Join Request */
-	Mcjc=	15,		/* Channel Join Confirm */
-	Msdr=	25,		/* Send Data Request */
-	Msdi=	26,		/* Send Data Indication */
-	Mdpu=	8,		/* Disconnect Provider Ultimatum */
-
-	Musrchanbase=	1001,
-
 	/* 2.2.1.3 Client MCS Connect Initial PDU with GCC Conference Create Request */
 	ClientCore=		0xC001,
 	ClientCluster=		0xC004,
@@ -39,21 +24,13 @@ enum
 
 	/* 2.2.1.3.1 User Data Header (TS_UD_HEADER) */
 	SrvCore				= 0x0C01,
-
 };
-
-int	mkgcccr(uchar*,int);
-int	sizegcccr(void);
 
 enum
 {
 	Bits5	= 0x1F,
 	Bits7 = 0x7F,
 };
-
-static	uchar*	gblen(uchar*,uchar*,int*);
-static	uchar*	gbtag(uchar*,uchar*,int*);
-static	void		pbshort(uchar*,int);
 
 static uchar*
 gbuint7(uchar *p, uchar* ep, int* pv)
@@ -80,7 +57,7 @@ gbuint7(uchar *p, uchar* ep, int* pv)
 	return p;	
 }
 
-static uchar*
+uchar*
 gbtag(uchar *p, uchar* ep, int* ptag)
 {
 	if(p >= ep){
@@ -94,7 +71,7 @@ gbtag(uchar *p, uchar* ep, int* ptag)
 	return p;
 }
 
-static uchar*
+uchar*
 gblen(uchar *p, uchar* ep, int* plen)
 {
 	int c,v;
@@ -125,7 +102,7 @@ gblen(uchar *p, uchar* ep, int* plen)
 	return p+c;
 }
 
-static void
+void
 pbshort(uchar* p, int v)
 {
 	p[0]=2;
@@ -136,11 +113,11 @@ pbshort(uchar* p, int v)
 int
 mcstype(uchar* p, uchar* ep)
 {
-	if(!isdatatpdu(p,ep)){
+	if(!istpdat(p,ep)){
 		werrstr("not an X.224 Data TPDU");
 		return -1;
 	}
-	p = tpdupayload(p, ep);
+	p = tpdat(p, ep);
 	if(p == nil)
 		return -1;
 	if(p >= ep){
@@ -157,13 +134,13 @@ ismcshangup(uchar* p, uchar* ep)
 }
 
 int
-mcschanid(uchar *p, uchar* ep)
+mcschan(uchar *p, uchar* ep)
 {
 	if(mcstype(p,ep) != Msdi){
 		werrstr("not an MCS Send Data Indication: %r");
 		return -1;
 	}
-	if((p = tpdupayload(p, ep)) == nil)
+	if((p = tpdat(p, ep)) == nil)
 		return -1;
 	if(p+5 > ep){
 		werrstr(Eshort);
@@ -173,13 +150,13 @@ mcschanid(uchar *p, uchar* ep)
 }
 
 uchar*
-mcspayload(uchar *p, uchar* ep)
+mcsdat(uchar *p, uchar* ep)
 {
 	if(mcstype(p,ep) != Msdi){
 		werrstr("not an MCS Send Data Indication: %r");
 		return nil;
 	}
-	if((p = tpdupayload(p, ep)) == nil)
+	if((p = tpdat(p, ep)) == nil)
 		return nil;
 
 	if(p+6 > ep){
@@ -195,23 +172,6 @@ mcspayload(uchar *p, uchar* ep)
 		return nil;
 	}
 	return p;
-}
-
-/* MCS Send Data Request */
-int
-mkmcssdr(uchar* p, int nb, int ndata, int chanid)
-{
-	if(nb < 8){
-		werrstr(Esmall);
-		return -1;
-	}
-	
-	p[0] = (Msdr<<2);
-	PSHORTB(p+1, rd.mcsuid);
-	PSHORTB(p+3, chanid);
-	p[5] = 0x70;
-	PSHORTB(p+6, ndata|0x8000);
-	return 8;
 }
 
 /* 2.2.1.3 Client MCS Connect Initial PDU with GCC Conference Create Request */
@@ -296,63 +256,76 @@ mkmcsci(uchar* buf, int nbuf, int ndata)
 
 /* GCC Conference Create Request  [T.124 section 8.7] in ASN.1 PER [X.691] */
 int
-sizegcccr(void)
+sizegccr(Msg* m)
 {
-	int size;
-	size = 9+14+216+12+12 + 8+12*nvc;
+	int size, nv;
+
+	nv = m->nvc;
+	size = 9+14+216+12+12 + 8+12*nv;
 	return size;	// should agree with the below
 }
 
+
+static uchar t124IdentifierKeyOid[7] = {0, 5, 0, 20, 124, 0, 1};
+
 int
-mkgcccr(uchar* buf, int nb)
+putgccr(uchar* buf, uint nb, Msg* m)
 {
 	int i;
 	uchar *p, *ep;
 	long gccsize, earlyCapabilityFlags;
+	int ver, depth, width, height, sproto, wantconsole;
+	char* sysname;
+	Vchan *v;
+	int nv;
 
 	p = buf;
 	ep = buf+nb;
-	gccsize = sizegcccr()-9;
+	gccsize = sizegccr(m)-9;
 	if(p+gccsize+9 > ep){
 		werrstr(Eshort);
 		return -1;
 	}
 
+	ver = m->ver;
+	depth = m->depth;
+	width = m->xsz;
+	height = m->ysz;
+	sysname = m->sysname;
+	sproto = m->sproto;
+	wantconsole = m->wantconsole;
+	v = m->vctab;
+	nv = m->nvc;
+
 	earlyCapabilityFlags = CanErrinfo;
-	if(rd.depth == 32)
+	if(depth == 32)
 		earlyCapabilityFlags |= Want32bpp;
 
-	// t124IdentifierKey: 0.0.20.124.0.1
-	p[0] = 0;
-	p[1] = 5;
-	p[2] = 0;
-	p[3] = 20;
-	p[4] = 124;
-	p[5] = 0;
-	p[6] = 1;
+	memcpy(p, t124IdentifierKeyOid, 7);
 
 	// connectPDU as a PER octet string
 	PSHORTB(p+7, (gccsize | 0x8000));	// connectPDU length
 	PSHORTB(p+9, 8);		// ConferenceCreateRequest
 	PSHORTB(p+11, 16);
 	p[13] = 0;
-	PSHORT(p+14, 0xC001);	// userData key: h221NonStandard. Yes, in LE.
+	PSHORT(p+14, 0xC001);	// userData key: h221NonStandard
 	p[16] = 0;
-	memcpy(p+17, "Duca", 4);	// H.221 nonstandard key (as mandated in 3.2.5.3.3)
+	memcpy(p+17, "Duca", 4);	// H.221 nonstandard key (3.2.5.3.3)
 	PSHORTB(p+21, ((gccsize-14) | 0x8000));		// userData length
 	p += 23;
 
 	// 2.2.1.3.2 Client Core Data
 	PSHORT(p+0, ClientCore);
 	PSHORT(p+2, 216);	// length of the data block
-	PLONG(p+4, 0x00080004);	// rdpVersion: RDP5=0x00080004
-	PSHORT(p+8, rd.dim.x);	// desktopWidth ≤ 4096
-	PSHORT(p+10, rd.dim.y);	// desktopHeight ≤ 2048
+	PLONG(p+4, ver);	// rdpVersion: RDP5=0x00080004
+	PSHORT(p+8, width);	// desktopWidth ≤ 4096
+	PSHORT(p+10, height);	// desktopHeight ≤ 2048
 	PSHORT(p+12, 0xCA01);	// colorDepth=8bpp, ignored
 	PSHORT(p+14, 0xAA03);	// SASSequence
 	PLONG(p+16, 0x409);	// keyboardLayout=us
 	PLONG(p+20, 2600); 	// clientBuild
-	toutf16(p+24, 32, rd.local, strlen(rd.local));	// clientName[32]
+	memset(p+24, 32, 0);	// clientName[32]
+	toutf16(p+24, 32, sysname, strlen(sysname));	
 	PSHORT(p+54, 0);		// zero-terminateclientName
 	PLONG(p+56, 4);	// keyboardType: 4="IBM enhanced (101-key or 102-key)"
 	PLONG(p+60, 0);	// keyboardSubType
@@ -361,13 +334,13 @@ mkgcccr(uchar* buf, int nb)
 	PSHORT(p+132, 0xCA01);	// postBeta2ColorDepth=8bpp, ignored
 	PSHORT(p+134, 1);	// clientProductId
 	PLONG(p+136, 0);	// serialNumber
-	PSHORT(p+140, MIN(rd.depth, 24));	// highColorDepth: 4, 8, 15, 16, 24 bpp.
+	PSHORT(p+140, MIN(depth, 24));	// highColorDepth: 4, 8, 15, 16, 24 bpp.
 	PSHORT(p+142, 1+2+4+8);	// supportedColorDepths: 1=24, 2=16, 4=15, 8=32 bpp
 	PSHORT(p+144, earlyCapabilityFlags);	// earlyCapabilityFlags 
 	memset(p+146, 64, 0);	// clientDigProductId[64]
 	p[210] = 7;	// connectionType: 7=autodetect
 	p[211] = 0;	// pad1octet
-	PLONG(p+212, rd.sproto);	// serverSelectedProtocol
+	PLONG(p+212, sproto);	// serverSelectedProtocol
 	p += 216;
 	
 	// 2.2.1.3.3 Client Security Data
@@ -380,161 +353,34 @@ mkgcccr(uchar* buf, int nb)
 	// 2.2.1.3.5 Client Cluster Data		*optional*
 	PSHORT(p+0, ClientCluster);
 	PSHORT(p+2, 12);	// length of the data block
-	PLONG(p+4, (rd.wantconsole? 11 : 9));	// Flags
+	PLONG(p+4, (wantconsole? 11 : 9));	// Flags
 	PLONG(p+8, 0);		// RedirectedSessionID
 	p += 12;
 
 	// 2.2.1.3.4 Client Network Data 	*optional*
 	// type[2] len[2] nchan[4] nchan*(name[8] options[4])
 	PSHORT(p+0, ClientNet);
-	PSHORT(p+2, 8+12*nvc);
-	PLONG(p+4, nvc);
-	for(i=0; i<nvc; i++){
-		memcpy(p+8+12*i+0, vctab[i].name, 8);
-		PLONGB(p+8+12*i+8, vctab[i].flags);
+	PSHORT(p+2, 8+12*nv);
+	PLONG(p+4, nv);
+	for(i=0; i<nv; i++){
+		memcpy(p+8+12*i+0, v[i].name, 8);
+		PLONGB(p+8+12*i+8, v[i].flags);
 	}
-	p += 8+12*nvc;
+	p += 8+12*nv;
 
 	return p-buf;
 }
 
-void
-erectdom(int fd)
-{
-	uchar buf[20], *p;
-	int len, nb;
-
-	p = buf;
-	nb = sizeof(buf);
-	len = mktpdat(buf, nb, 5);
-	if(len < 0)
-		sysfatal("mktpdat: %r");
-	p += TPDATAFIXLEN;
-	
-	p[0] = (Medr<<2);
-	PSHORTB(p+1, 1);
-	PSHORTB(p+3, 1);	
-	if(writen(fd, buf, len) != len)
-		sysfatal("Erect Domain: write: %r");
-}
-
 int
-attachuser(int fd)
+getmcr(Msg* m, uchar* b, uint nb)
 {
-	int len, tag, r, nb;
-	uchar buf[20], *p, *ep;
+	int len, tag, r, utype, ulen;
+	uchar *p, *ep;
 
-	nb = sizeof(buf);
-	len = mktpdat(buf, nb, 1);
-	if(len < 0)
-		sysfatal("mktpdat: %r");
-	buf[TPDATAFIXLEN] = (Maur<<2);
-	if(writen(fd, buf, len) != len)
-		sysfatal("Attach User: write: %r");
+	p = b;
+	ep = b+nb;
 
-	len = readpdu(fd, buf, nb);
-	if(len <= 0)
-		sysfatal("readpdu: %r");
-	p = buf;
-	ep = buf+len;
-	if(!isdatatpdu(p,ep))
-		sysfatal("MCS: expected Data TPDU\n");
-	p = tpdupayload(p, ep);
-	if(p+2 > ep)
-		sysfatal(Eshort);
-
-	tag = p[0]>>2;
-	r = p[1];
-	if(tag != Mauc)
-		sysfatal("expected tag %d (Mauc), got %d", Mauc, tag);
-	if(r != 0)
-		sysfatal("Mauc error result: %d", r);
-	if((p[0])&2){
-		if(p+4 > ep)
-			sysfatal(Eshort);
-		rd.mcsuid = GSHORTB(p+2);
-		rd.userchan = rd.mcsuid+Musrchanbase;
-	}
-	return r;
-}
-
-int
-joinchannel(int fd, int chanid)
-{
-	uchar buf[32], *p, *ep;
-	int tag, len, r, nb;
-
-	p = buf;
-	nb = sizeof(buf);
-	len = mktpdat(buf, nb, 5);
-	if(len < 0)
-		sysfatal("mktpdat: %r");
-	p += TPDATAFIXLEN;
-	p[0] = (Mcjr << 2);
-	PSHORTB(p+1, rd.mcsuid);
-	PSHORTB(p+3, chanid);
-	if(writen(fd, buf, len) != len)
-		sysfatal("Channel Join: write: %r");
-
-	len = readpdu(fd, buf, nb);
-	if(len <= 0)
-		sysfatal("readpdu: %r");
-	p = buf;
-	ep = buf+len;
-	if(!isdatatpdu(p,ep))
-		sysfatal("MCS: expected Data TPDU\n");
-	p = tpdupayload(p, ep);
-	if(p+2 > ep)
-		sysfatal(Eshort);
-
-	tag = p[0]>>2;
-	r = p[1];
-	if(tag != Mcjc)
-		sysfatal("expected tag %d (Mcjc), got %d", Mcjc, tag);
-	if(r != 0)
-		sysfatal("Mcjc error result: %d", r);
-
-	return r;
-
-}
-
-int
-mcsconnect(int fd)
-{
-	uchar buf[MAXTPDU], *p, *ep;
-	int n, ndata, nb, len, tag, r, ver, utype, ulen;
-
-	/* 2.2.1.3 Client MCS Connect Initial PDU with GCC Conference Create Request */
-	nb = sizeof(buf);
-	ndata = sizegcccr();
-	len = mktpdat(buf, nb, ndata+MCSCIFIXLEN);
-	if(len < 0)
-		sysfatal("mktpdat: %r");
-	p = buf+TPDATAFIXLEN;
-	ep = buf+nb;
-	n = mkmcsci(p, ep-p, ndata);
-	if(n != ndata+MCSCIFIXLEN)
-		sysfatal("mkmcsci: %r");
-	n = mkgcccr(p+MCSCIFIXLEN, ndata);
-	if(n != ndata)
-		sysfatal("mkgcccr: %r");
-	if(writen(fd, buf, len) != len)
-		sysfatal("TPDUDT: write: %r");
-
-	/* 2.2.1.4 Server MCS Connect Response PDU with GCC Conference Create Response */
-	len = readpdu(fd, buf, nb);
-	if(len <= 0){
-		werrstr("read MCS Connect Response PDU: %r");
-		return -1;
-	}
-	p = buf;
-	ep = buf+len;
-
-	if(!isdatatpdu(p,ep)){
-		werrstr("MCS: expected Data TPDU\n");
-		return -1;
-	}
-	p = tpdupayload(p, ep);
+	m->type = Mconnected;
 
 	/* at MCS Connect-Response ASN.1 BER-encoded structure */
 	if((p = gbtag(p, ep, &tag)) == nil || tag != Mcr || (p = gblen(p, ep, &len)) == nil)
@@ -580,12 +426,29 @@ mcsconnect(int fd)
 		ulen = GSHORT(p+2);
 		switch(utype){
 		case SrvCore:		/* 2.2.1.4.2 Server Core Data */
-			ver = GLONG(p+4);
-			assert(ver >= 0x00080004);
+			m->ver = GLONG(p+4);
 			break;
+		/* BUG: exract channel IDs from SrvNet */
 		}
 		p += ulen;
 	}
+	return p-b;
+}
 
-	return r;
+
+/* MCS Send Data Request */
+int
+putmsdr(uchar* p, int nb, int ndata, int chanid, int mcsuid)
+{
+	if(nb < 8){
+		werrstr(Esmall);
+		return -1;
+	}
+	
+	p[0] = (Msdr<<2);
+	PSHORTB(p+1, mcsuid);
+	PSHORTB(p+3, chanid);
+	p[5] = 0x70;
+	PSHORTB(p+6, ndata|0x8000);
+	return 8;
 }

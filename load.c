@@ -6,7 +6,7 @@
 
 /* like loadimage(2) but reverses scanline order and translates per cmap */
 int
-loadbmp(Image *i, Rectangle r, uchar *data, int ndata)
+loadbmp(Image *i, Rectangle r, uchar *data, int ndata, uchar *cmap)
 {
 	int n, bpl;
 	uchar *a;
@@ -46,7 +46,7 @@ loadbmp(Image *i, Rectangle r, uchar *data, int ndata)
 }
 
 int
-loadrle(Image *i, Rectangle r, uchar *data, int ndata)
+loadrle(Image *i, Rectangle r, uchar *data, int ndata, uchar *cmap)
 {
 	int nb, bpl;
 	uchar *buf;
@@ -60,7 +60,7 @@ loadrle(Image *i, Rectangle r, uchar *data, int ndata)
 		free(buf);
 		return -1;
 	}
-	if(loadbmp(i, r, buf, nb) < 0){
+	if(loadbmp(i, r, buf, nb, cmap) < 0){
 		werrstr("loadrle: r=%R i->r=%R: %r", r, i->r);
 		free(buf);
 		return -1;

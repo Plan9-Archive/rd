@@ -145,7 +145,7 @@ struct Msg {
 	int	ver;	/* Mconnect, Mconnected */
 	int	xsz;	/* Mconnect, Dsupress, Mactivated */
 	int	ysz;	/* Mconnect, Dsupress, Mactivated */
-	int	height;	/* Mconnect, Dsupress, Mactivated */
+	int	depth;	/* Mconnect, Dsupress, Mactivated */
 	char	*sysname;	/* Mconnect, Dclientinfo, Lreq */
 	int	sproto;	/* Mconnect */
 	int	wantconsole;	/* Mconnect */

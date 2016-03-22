@@ -89,8 +89,8 @@ getcaps(Caps* caps, uchar* a, uint nb)
 			}
 			caps->bitmap = 1;
 			caps->depth = GSHORT(p+4);
-			caps->width = GSHORT(p+12);
-			caps->height = GSHORT(p+14);
+			caps->xsz = GSHORT(p+12);
+			caps->ysz = GSHORT(p+14);
 			break;
 		}
 		p += len;

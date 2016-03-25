@@ -224,7 +224,7 @@ void
 readnet(Rdp* c)
 {
 	Msg r;
-	
+
 	for(;;){
 		if(readmsg(c, &r) <= 0)
 			return;
@@ -238,6 +238,11 @@ readnet(Rdp* c)
 		case Aupdate:
 			scanupdates(c, &r);
 			break;
+		case 0:
+			fprint(2, "unsupported PDU\n");
+			break;
+		default:
+			fprint(2, "r.type %d is not expected\n", r.type);
 		}
 	}
 }
@@ -258,8 +263,15 @@ scanupdates(Rdp* c, Msg* m)
 			sysfatal("scanupdates: %r");
 
 		switch(u.type){
+		default:
+			if(u.type != 0)
+				fprint(2, "scanupdates: unhandled %d\n", u.type);
+			break;
 		case ShDeactivate:
 			deactivating(c, &u);
+			break;
+		case ShActivate:	// server may engage capability re-exchange
+			activating(c, &u);
 			break;
 		case ShEinfo:
 			c->hupreason = u.err;
@@ -276,45 +288,10 @@ scanupdates(Rdp* c, Msg* m)
 		case ShUwarp:
 			warpmouse(u.x, u.y);
 			break;
+		case Aflow:
+			break;
 		}
 	}
-}
-
-/* 2.2.1.13.1 Server Demand Active PDU */
-void
-activating(Rdp* c, Share* as)
-{
-	Caps rcaps;
-
-	if(getcaps(&rcaps, as->data, as->ndata) < 0)
-		sysfatal("getcaps: %r");
-	if(!rcaps.canrefresh)
-		sysfatal("server can not Refresh Rect PDU");
-	if(!rcaps.cansupress)
-		sysfatal("server can not Suppress Output PDU");
-	if(!rcaps.bitmap)
-		sysfatal("server concealed their Bitmap Capabilities");
-
-	switch(rcaps.depth){
-	default:	sysfatal("Unsupported server color depth: %uhd\n", rcaps.depth);
-	case 8:	c->chan = CMAP8; break;
-	case 15:	c->chan = RGB15; break;
-	case 16:	c->chan = RGB16; break;
-	case 24:	c->chan = RGB24; break;
-	case 32:	c->chan = XRGB32; break;
-	}
-	c->depth = rcaps.depth;
-	c->xsz = rcaps.xsz;
-	c->ysz = rcaps.ysz;
-	c->srvchan = as->source;
-	c->shareid = as->shareid;
-	c->active = 1;
-}
-
-void
-deactivating(Rdp* c, Share*)
-{
-	c->active = 0;
 }
 
 /* 2.2.9.1.1.3.1.2.1 Bitmap Update Data (TS_UPDATE_BITMAP_DATA) */

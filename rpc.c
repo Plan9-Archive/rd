@@ -158,7 +158,6 @@ rdphandshake(Rdp* c)
 		case Mclosing:
 			werrstr("Disconnect Provider Ultimatum");
 			return -1;
-		case Aflow:
 		case Ldone:
 			break;
 		case Lneedlicense:
@@ -169,27 +168,97 @@ rdphandshake(Rdp* c)
 			if(r.getshare(&u, r.data, r.ndata) < 0)
 				return -1;
 			switch(u.type){
-			case ShEinfo:
+			default:
+				fprint(2, "handshake: unhandled %d\n", u.type);
+				break;
+			case ShEinfo:	/* do we really expect this here? */
 				c->hupreason = u.err;
 				break;
 			case ShActivate:
 				activating(c, &u);
-				confirmactive(c);
-				passinput(c, 0, InputSync, 0, 0, 0);
-				assync(c);
-				asctl(c, CAcooperate);
-				asctl(c, CAreqctl);
-				asfontls(c);
-				break;
-			case ShDeactivate:
-				deactivating(c, &u);
+				return 0;
+			}
+		}
+	}
+}
+
+/* 2.2.1.13.1 Server Demand Active PDU */
+void
+activating(Rdp* c, Share* as)
+{
+	Caps rcaps;
+
+	if(getcaps(&rcaps, as->data, as->ndata) < 0)
+		sysfatal("getcaps: %r");
+	if(!rcaps.canrefresh)
+		sysfatal("server can not Refresh Rect PDU");
+	if(!rcaps.cansupress)
+		sysfatal("server can not Suppress Output PDU");
+	if(!rcaps.bitmap)
+		sysfatal("server concealed their Bitmap Capabilities");
+
+	switch(rcaps.depth){
+	default:	sysfatal("Unsupported server color depth: %uhd\n", rcaps.depth);
+	case 8:	c->chan = CMAP8; break;
+	case 15:	c->chan = RGB15; break;
+	case 16:	c->chan = RGB16; break;
+	case 24:	c->chan = RGB24; break;
+	case 32:	c->chan = XRGB32; break;
+	}
+	c->depth = rcaps.depth;
+	c->xsz = rcaps.xsz;
+	c->ysz = rcaps.ysz;
+	c->srvchan = as->source;
+	c->shareid = as->shareid;
+	c->active = 1;
+
+	confirmactive(c);
+	finalhandshake(c);
+
+	passinput(c, 0, InputSync, 0, 0, 0);
+}
+
+void
+deactivating(Rdp* c, Share*)
+{
+	c->active = 0;
+}
+
+void
+finalhandshake(Rdp* c)
+{
+	Msg r;
+	Share u;
+
+	assync(c);
+	asctl(c, CAcooperate);
+	asctl(c, CAreqctl);
+	asfontls(c);
+
+	for(;;){
+		if(readmsg(c, &r) <= 0)
+			sysfatal("activating: readmsg: %r");
+		switch(r.type){
+		default:
+			fprint(2, "activating: unhandled PDU type %d\n", u.type);
+			break;
+		case Mclosing:
+			fprint(2, "disconnecting early");
+			return;
+		case Aupdate:
+			if(r.getshare(&u, r.data, r.ndata) < 0)
+				sysfatal("activating: r.getshare: %r");
+			switch(u.type){
+			default:
+				fprint(2, "activating: unhandled ASPDU type %d\n", u.type);
 				break;
 			case ShSync:
 			case ShCtl:
+				/* responses to the assync(). asctl() calls above */
 				break;
 			case ShFmap:
-				return 0;
-				break;
+				/* finalized - we're good */
+				return;
 			}
 		}
 	}

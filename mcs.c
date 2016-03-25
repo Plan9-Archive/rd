@@ -325,7 +325,7 @@ putgccr(uchar* buf, uint nb, Msg* m)
 	PLONG(p+16, 0x409);	// keyboardLayout=us
 	PLONG(p+20, 2600); 	// clientBuild
 	memset(p+24, 32, 0);	// clientName[32]
-	toutf16(p+24, 32, sysname, strlen(sysname));	
+	toutf16(p+24, 32, sysname, strlen(sysname)+1);
 	PSHORT(p+54, 0);		// zero-terminateclientName
 	PLONG(p+56, 4);	// keyboardType: 4="IBM enhanced (101-key or 102-key)"
 	PLONG(p+60, 0);	// keyboardSubType

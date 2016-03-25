@@ -225,10 +225,10 @@ int	getshareF(Share*, uchar*, uint);	/* RDP Fast-Path updates */
 
 void	activating(Rdp*,Share*);
 void	deactivating(Rdp*,Share*);
+void	finalhandshake(Rdp*);
 void	scanimgupdate(Rdp*,Share*);
 void	scancmap(Rdp*,Share*);
 void	scanorders(Rdp*,Share*);
-
 
 struct Imgupd {
 	int	x;

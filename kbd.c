@@ -17,6 +17,8 @@ enum
 {
 	Sext=	(1<<16),
 	Sesc=	1,
+	S1=	2,
+	S0=	11,
 	Sbspace=	14,
 	Stab=	15,
 	Sq=	16,
@@ -222,6 +224,20 @@ readkbd(Rdp* c)
 			break;
 		case KF|12:
 			kbdsendscan(c, SF12, 0);
+			break;
+		case '0':
+			kbdsendscan(c, S0, 0);
+			break;
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			kbdsendscan(c, S1+r-'1', 0);
 			break;
 		default:
 			kbdsendrune(c, r);

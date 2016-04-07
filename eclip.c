@@ -15,16 +15,16 @@ static char	cliprdr[]				= "CLIPRDR";
 
 enum
 {
-	CFunicode=	13,
+	FmtUnicode=	13,
 
-	FlagOk=	(1<<0),
-	FlagErr=	(1<<1),
+	Fok= 	1<<0,
+	Ferr=	1<<1,
 
-	ClipReady=	1,
-	ClipAnnounce=	2,
-	ClipNoted=	3,
-	ClipReq=	4,
-	ClipResp=	5,
+	Cready=	1,
+	Cannounce=	2,
+	Cnoted=	3,
+	Crq=	4,
+	Crx=	5,
 };
 
 typedef	struct	Clipmsg Clipmsg;
@@ -46,56 +46,58 @@ static	void	clipprovided(Rdp*,Clipmsg*);
 
 static	void	(*clipcall[])(Rdp*,Clipmsg*) =
 {
-	[ClipReady]=		clipattached,
-	[ClipAnnounce]=	clipnoted,
-	[ClipReq]=		cliprequested,
-	[ClipResp]=		clipprovided,
+	[Cready]=		clipattached,
+	[Cannounce]=	clipnoted,
+	[Crq]=		cliprequested,
+	[Crx]=		clipprovided,
 };
 
-static void		cliprequest(Rdp*,uint);
+static void		cliprequest(Rdp*);
 
 void
 clipvcfn(Rdp* c, uchar* p, uint nb)
 {
-	Clipmsg tx;
+	Clipmsg r;
 
-	if(clipgetmsg(&tx, p, nb) < 0)
+	if(clipgetmsg(&r, p, nb) < 0)
 		return;
-	if(tx.flags&FlagErr)
+	if(r.flags&Ferr)
 		return;
-	if(tx.type >= nelem(clipcall))
+	if(r.type >= nelem(clipcall))
 		return;
-	if(clipcall[tx.type] == nil)
+	if(clipcall[r.type] == nil)
 		return;
-	clipcall[tx.type](c, &tx);
+	clipcall[r.type](c, &r);
 }
 
 void
 clipannounce(Rdp* c)
 {
-	Clipmsg r;
+	Clipmsg t;
 	uchar a[44];
 	int n;
 
-	r.type = ClipAnnounce;
-	r.flags = 0;
-	r.fmtid = CFunicode;
-	n = clipputmsg(&r, a, sizeof(a));
+	t.type = Cannounce;
+	t.flags = 0;
+	t.fmtid = FmtUnicode;
+	t.ndata = 0;
+	n = clipputmsg(&t, a, sizeof(a));
 	if(sendvc(c, cliprdr, a, n) < 0)
 		fprint(2, "clipannounce: %r\n");
 }
 
 static void
-cliprequest(Rdp* c, uint fmtid)
+cliprequest(Rdp* c)
 {
-	Clipmsg r;
+	Clipmsg t;
 	uchar a[12];
 	int n;
 
-	r.type = ClipReq;
-	r.flags = 0;
-	r.fmtid = fmtid;
-	n = clipputmsg(&r, a, sizeof(a));
+	t.type = Crq;
+	t.flags = 0;
+	t.fmtid = FmtUnicode;
+	t.ndata = 0;
+	n = clipputmsg(&t, a, sizeof(a));
 	if(sendvc(c, cliprdr, a, n) < 0)
 		fprint(2, "cliprequest: %r\n");
 }
@@ -109,16 +111,17 @@ clipattached(Rdp* c, Clipmsg*)
 static void
 clipnoted(Rdp* c, Clipmsg *m)
 {
-	Clipmsg r;
+	Clipmsg t;
 	uchar a[8];
 	int n;
 
-	if(m->fmtid)
-		cliprequest(c, m->fmtid);
+	if(m->fmtid == FmtUnicode)
+		cliprequest(c);
 
-	r.type = ClipNoted;
-	r.flags = FlagOk;
-	n = clipputmsg(&r, a, sizeof(a));
+	t.type = Cnoted;
+	t.flags = Fok;
+	t.ndata = 0;
+	n = clipputmsg(&t, a, sizeof(a));
 	if(sendvc(c, cliprdr, a, n) < 0)
 		fprint(2, "clipnoted: %r\n");
 }
@@ -126,7 +129,7 @@ clipnoted(Rdp* c, Clipmsg *m)
 static void
 cliprequested(Rdp* c, Clipmsg *m)
 {
-	Clipmsg r;
+	Clipmsg t;
 	char* s;
 	uchar *b;
 	int n, ns, nb;
@@ -134,10 +137,10 @@ cliprequested(Rdp* c, Clipmsg *m)
 	b = emalloc(8);
 	nb = 0;
 
-	r.type = ClipResp;
-	r.flags = FlagOk;
-	if(m->fmtid != CFunicode){
-		r.flags = FlagErr;
+	t.type = Crx;
+	t.flags = Fok;
+	if(m->fmtid != FmtUnicode){
+		t.flags = Ferr;
 		goto Respond;
 	}
 
@@ -149,9 +152,9 @@ cliprequested(Rdp* c, Clipmsg *m)
 	nb = toutf16(b+8, nb, s, ns);
 	free(s);
   Respond:
-	r.data = b+8;
-	r.ndata = nb;
-	n = clipputmsg(&r, b, nb+8);
+	t.data = b+8;
+	t.ndata = nb;
+	n = clipputmsg(&t, b, nb+8);
 	if(sendvc(c, cliprdr, b, n) < 0)
 		fprint(2, "cliprequested: %r\n");
 	free(b);
@@ -181,7 +184,7 @@ clipputmsg(Clipmsg *m, uchar *a, int n)
 	PSHORT(a+0, m->type);
 	PSHORT(a+2, m->flags);
 	switch(m->type){
-	case ClipAnnounce:
+	case Cannounce:
 		m->data = a+8;
 		m->ndata = 4+32;
 		if(8 + m->ndata > n){
@@ -191,7 +194,7 @@ clipputmsg(Clipmsg *m, uchar *a, int n)
 		PLONG(a+8, m->fmtid);
 		memset(a+12, 0, 32);	/* fmt name - who cares? */
 		break;
-	case ClipReq:
+	case Crq:
 		m->data = a+8;
 		m->ndata = 4;
 		if(8 + m->ndata > n){
@@ -200,7 +203,7 @@ clipputmsg(Clipmsg *m, uchar *a, int n)
 		}
 		PLONG(a+8, m->fmtid);
 		break;
-	case ClipNoted:
+	case Cnoted:
 		m->ndata = 0;
 		m->data = a+8;
 		break;
@@ -217,7 +220,7 @@ clipputmsg(Clipmsg *m, uchar *a, int n)
 static int
 clipgetmsg(Clipmsg *m, uchar *p, int n)
 {
-	uint len, fmtid;
+	uint len;
 	uchar *ep;
 
 	if(8 > n){
@@ -235,23 +238,21 @@ clipgetmsg(Clipmsg *m, uchar *p, int n)
 	m->data = p+8;
 
 	switch(m->type){
-	case ClipReq:
+	case Crq:
 		if(len < 4){
 			werrstr(Eshort);
 			return -1;
 		}
 		m->fmtid = GLONG(m->data);
 		break;
-	case ClipAnnounce:
+	case Cannounce:
 		m->fmtid = 0;
 		p += 8;
 		ep = p+len;
 		while(p < ep){
-			fmtid = GLONG(p);
-			if(fmtid == CFunicode){
-				m->fmtid = fmtid;
+			m->fmtid = GLONG(p);
+			if(m->fmtid == FmtUnicode)
 				break;
-			}
 			p += 4+32*1;
 		}
 		break;

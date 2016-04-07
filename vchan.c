@@ -10,28 +10,28 @@
 
 enum
 {
-	ChanInited=	0x80000000,	/* 2.2.1.3.4.1 Channel Definition Structure */
-	ChanShowproto=	0x00200000,
+	/* 2.2.1.3.4.1 Channel Definition Structure */
+	Inited=	1<<31,
 	
-	ChanChunkLen=	1600,	/* 2.2.6.1 Virtual Channel PDU */
+	/* 2.2.6.1 Virtual Channel PDU */
+	MTU=	1600,
 
-	CFfirst=	0x01,	/* 2.2.6.1.1 Channel PDU Header */
-	CFlast=	0x02,
-	CFshowproto=	0x10,
+	/* 2.2.6.1.1 Channel PDU Header */
+	First=	1<<0,
+	Last=	1<<1,
+	Vis=  	1<<4,
 };
 
-static
-Vchan vctab[] =
+static Vchan vctab[] =
 {
 	{
-		.mcsid = GLOBALCHAN + 1,	/* iota */
+		.mcsid = GLOBALCHAN+1,	/* iota */
 		.name = "CLIPRDR",
 		.fn = clipvcfn,
-		.flags = ChanInited | ChanShowproto,
+		.flags = Inited,
 	},
 };
-static
-uint nvc = nelem(vctab);
+static uint nvc = nelem(vctab);
 
 void
 initvc(Rdp* c)
@@ -44,6 +44,7 @@ static Vchan*
 lookupvc(int mcsid)
 {
 	int i;
+
 	for(i=0; i<nvc; i++)
 	if(vctab[i].mcsid == mcsid)
 		return &vctab[i];
@@ -54,6 +55,7 @@ static Vchan*
 namevc(char* name)
 {
 	int i;
+
 	for(i=0; i<nvc; i++)
 	if(strcmp(vctab[i].name, name) == 0)
 		return &vctab[i];
@@ -70,7 +72,7 @@ scanvcdata(Rdp* c, Msg* m)
 	if(vc == nil)
 		return;
 
-	if(m->flags&CFfirst)
+	if(m->flags&First)
 		vc->pos = 0;
 
 	vc->buf = erealloc(vc->buf, m->len);
@@ -81,7 +83,7 @@ scanvcdata(Rdp* c, Msg* m)
 	memcpy(vc->buf+vc->pos, m->data, n);
 	vc->pos += n;
 
-	if(m->flags&CFlast){
+	if(m->flags&Last){
 		vc->fn(c, vc->buf, vc->nb);
 		free(vc->buf);
 		vc->buf = nil;
@@ -110,22 +112,22 @@ sendvc(Rdp* c, char* cname, uchar* a, int n)
 	t.type = Mvcdata;
 	t.originid = c->userchan;
 	t.chanid = vc->mcsid;
-	t.flags = CFfirst | CFshowproto;
+	t.flags = First | Vis;
 	t.len = n;
 	t.data = a;
 
 	for(sofar=0; sofar<n; sofar += chunk){
 		chunk = n-sofar;
-		if(chunk > ChanChunkLen)
-			chunk = ChanChunkLen;
+		if(chunk > MTU)
+			chunk = MTU;
 		else
-			t.flags |= CFlast;
+			t.flags |= Last;
 
 		t.data = a+sofar;
 		t.ndata = chunk;
 		writemsg(c, &t);
 
-		t.flags &= ~CFfirst;
+		t.flags &= ~First;
 	}
 	return n;
 }

@@ -9,7 +9,7 @@ int	attachuser(Rdp*);
 int	joinchannel(Rdp*,int,int);
 
 int
-x224connect(Rdp* c)
+x224handshake(Rdp* c)
 {
 	Msg t, r;
 
@@ -27,16 +27,16 @@ x224connect(Rdp* c)
 		werrstr("server refused STARTTLS");
 		return -1;
 	}
+	c->sproto = r.negproto;
 
 	if(starttls(c) < 0)
 		return -1;
 
-	c->sproto = r.negproto;
 	return 0;
 }
 
 int
-x224disconnect(Rdp* c)
+x224hangup(Rdp* c)
 {
 	Msg t;
 
@@ -61,7 +61,6 @@ mcsconnect(Rdp* c)
 	t.nvc = c->nvc;
 	if(writemsg(c, &t) <= 0)
 		sysfatal("Connect Initial: writemsg: %r");
-
 	if(readmsg(c, &r) <= 0)
 		sysfatal("Connect Response: readmsg: %r");
 	if(r.type != Mconnected)
@@ -142,12 +141,12 @@ rdphandshake(Rdp* c)
 	mcsuid = c->mcsuid;
 	userchan = c->userchan;
 
-	if(joinchannel(c, mcsuid, userchan) < 0)
+	if(joinchannel(c, c->mcsuid, c->userchan) < 0)
 		return -1;
-	if(joinchannel(c, mcsuid, GLOBALCHAN) < 0)
+	if(joinchannel(c, c->mcsuid, GLOBALCHAN) < 0)
 		return -1;
 	for(i = 0; i < nv; i++)
-		if(joinchannel(c, mcsuid, v[i].mcsid) < 0)
+		if(joinchannel(c, c->mcsuid, v[i].mcsid) < 0)
 			return -1;
 
 	sendclientinfo(c);
@@ -363,18 +362,18 @@ asfontls(Rdp* c)
 }
 
 void
-passinput(Rdp* c, ulong msec, int mtype, int iflags, int iarg1, int iarg2)
+passinput(Rdp* c, ulong msec, int t, int f, int a, int b)
 {
 	Msg t;
 
 	t.type = Ainput;
 	t.originid = c->userchan;
 	t.shareid = c->shareid;
-	t.mtype = mtype;
 	t.msec = msec;
-	t.flags = iflags;
-	t.iarg1 = iarg1;
-	t.iarg2 = iarg2;
+	t.mtype = t;
+	t.flags = f;
+	t.iarg[0] = a;
+	t.iarg[1] = b;
 	if(writemsg(c, &t) <= 0)
 		sysfatal("passinput: %r");
 }

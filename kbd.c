@@ -111,18 +111,18 @@ void
 kbdsendscan(Rdp* c, int sc, int mod)
 {
 	long msec;
-	int f;
+	int x;
 
-	f = 0;
+	x = 0;
 	if(sc&Sext)
-		f = KeyEx;
+		x = KeyEx;
 	sc &= ~Sext;
 
 	msec = time(nil);
 	if(mod != 0)
 		passinput(c, msec, InputKeycode, 0, mod, 0);
-	passinput(c, msec, InputKeycode, f|0, sc, 0);
-	passinput(c, msec, InputKeycode, f|KeyUp, sc, 0);
+	passinput(c, msec, InputKeycode, x|0, sc, 0);
+	passinput(c, msec, InputKeycode, x|KeyUp, sc, 0);
 	if(mod != 0)
 		passinput(c, msec, InputKeycode, KeyUp, mod, 0);
 }

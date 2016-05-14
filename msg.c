@@ -247,8 +247,8 @@ putmsg(uchar* b, uint nb, Msg* m)
 		PLONG(q+4, m->msec);
 		PSHORT(q+8, m->mtype);
 		PSHORT(q+10, m->flags);
-		PSHORT(q+12, m->iarg1);
-		PSHORT(q+14, m->iarg2);
+		PSHORT(q+12, m->iarg[0]);
+		PSHORT(q+14, m->iarg[1]);
 		return len;
 
 	case Lreq:

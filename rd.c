@@ -5,7 +5,7 @@
 #include "dat.h"
 #include "fns.h"
 
-Rdp rd = {
+Rdp conn = {
 	.fd = -1,
 	.depth = 16,
 	.windom = "",
@@ -41,7 +41,7 @@ writen(int fd, void* buf, long nbytes)
 }
 
 static int
-startmouseproc(void)
+startmouseproc(Rdp* c)
 {
 	int mpid;
 
@@ -54,13 +54,13 @@ startmouseproc(void)
 		return mpid;
 	}
 	atexit(atexitkiller);
-	readdevmouse(&rd);
+	readdevmouse(c);
 	exits("mouse eof");
 	return 0;
 }
 
 static int
-startkbdproc(void)
+startkbdproc(Rdp* c)
 {
 	int pid;
 	switch(pid = rfork(RFPROC|RFMEM)){
@@ -72,13 +72,13 @@ startkbdproc(void)
 		return pid;
 	}
 	atexit(atexitkiller);
-	readkbd(&rd);
+	readkbd(c);
 	exits("kbd eof");
 	return 0;
 }
 
 static int
-startsnarfproc(void)
+startsnarfproc(Rdp* c)
 {
 	int pid;
 
@@ -92,7 +92,7 @@ startsnarfproc(void)
 	}
 	atexit(atexitkiller);
 	initsnarf();
-	pollsnarf(&rd);
+	pollsnarf(c);
 	exits("snarf eof");
 	return 0;
 }
@@ -119,12 +119,12 @@ atexitkill(int pid)
 void
 main(int argc, char *argv[])
 {
-	int doauth, fd;
-	char *server, *addr, *keyspec;
+	int doauth;
+	char *server, *addr, *keyspec, *label;
 	UserPasswd *creds;
+	Rdp* c;
 
-	rd.local = getenv("sysname");
-	rd.user = getenv("user");
+	c = &conn;
 
 	keyspec = "";
 	doauth = 1;
@@ -137,25 +137,22 @@ main(int argc, char *argv[])
 		keyspec = EARGF(usage());
 		break;
 	case 'T':
-		rd.label = strdup(EARGF(usage()));
+		label = strdup(EARGF(usage()));
 		break;
 	case 'd':
-		rd.windom = strdup(EARGF(usage()));
+		c->windom = strdup(EARGF(usage()));
 		break;
 	case 's':
-		rd.shell = strdup(EARGF(usage()));
+		c->shell = strdup(EARGF(usage()));
 		break;
 	case 'c':
-		rd.rwd = strdup(EARGF(usage()));
-		break;
-	case 'n':
-		rd.local = estrdup(EARGF(usage()));
+		c->rwd = strdup(EARGF(usage()));
 		break;
 	case 'a':
-		rd.depth = atol(EARGF(usage()));
+		c->depth = atol(EARGF(usage()));
 		break;
 	case '0':
-		rd.wantconsole = 1;
+		c->wantconsole = 1;
 		break;
 	default:
 		usage();
@@ -165,58 +162,59 @@ main(int argc, char *argv[])
 		usage();
 
 	server = argv[0];
-	if(rd.local == nil)
-		sysfatal("set $sysname or use -n\n");
-	if(rd.user == nil)
-		sysfatal("set $user");
-	if (rd.label == nil)
-		rd.label = smprint("rd %s", server);
 
+	c->local = getenv("sysname");
+	c->user = getenv("user");
+	if(c->local == nil)
+		sysfatal("set $sysname or use -n\n");
+	if(c->user == nil)
+		sysfatal("set $user");
 	if(doauth){
 		creds = auth_getuserpasswd(auth_getkey, "proto=pass service=rdp %s", keyspec);
 		if(creds == nil)
 			fprint(2, "factotum: %r\n");
 		else {
-			rd.user = creds->user;
-			rd.passwd = creds->passwd;
+			c->user = creds->user;
+			c->passwd = creds->passwd;
 		}
 	}else
-		rd.user = "";
-	initvc(&rd);
+		c->user = "";
+
+	initvc(c);
 
 	addr = netmkaddr(server, "tcp", "3389");
-	fd = dial(addr, nil, nil, nil);
-	if(fd < 0)
+	c->fd = dial(addr, nil, nil, nil);
+	if(c->fd < 0)
 		sysfatal("dial %s: %r", addr);
-	rd.fd = fd;
-	if(x224connect(&rd) < 0)
-		sysfatal("connect: %r");
+	if(x224handshake(c) < 0)
+		sysfatal("X.224 handshake: %r");
 
-	if(initdraw(drawerror, nil, rd.label) < 0)
+	if(label == nil)
+		label = smprint("rd %s", server);
+	if(initdraw(drawerror, nil, label) < 0)
 		sysfatal("initdraw: %r");
 	display->locking = 1;
 	unlockdisplay(display);
 
-	rd.ysz = Dy(screen->r);
-	rd.xsz = (Dx(screen->r) +3) & ~3;
+	c->ysz = Dy(screen->r);
+	c->xsz = (Dx(screen->r) +3) & ~3;
 
-	if(rdphandshake(&rd) < 0)
+	if(rdphandshake(c) < 0)
 		sysfatal("handshake: %r");
 
 	atexit(atexitkiller);
 	atexitkill(getpid());
-	atexitkill(startmouseproc());
-	atexitkill(startkbdproc());
-	atexitkill(startsnarfproc());
+	atexitkill(startmouseproc(c));
+	atexitkill(startkbdproc(c));
+	atexitkill(startsnarfproc(c));
 
-	readnet(&rd);
+	readnet(c);
 
-	x224disconnect(&rd);
-
-	if(!rd.active)
+	x224hangup(c);
+	if(!c->active)
 		exits(nil);
-	if(rd.hupreason)
-		sysfatal("disconnect reason code %d", rd.hupreason);
+	if(c->hupreason)
+		sysfatal("disconnect reason code %d", c->hupreason);
 	sysfatal("hangup");
 }
 

@@ -25,7 +25,6 @@ struct Rdp
 {
 	int		fd;			/* connection I/O descriptor */
 	long		sproto;		/* magic to bounce back to server */
-	char		*label;		/* window label */
 	char		*local;		/* local system name */
 	char		*user;		/* user name for auto logon  */
 	char		*windom;		/* domain for auto logon */
@@ -50,8 +49,8 @@ struct Rdp
 };
 int	starttls(Rdp*);
 int	rdphandshake(Rdp*);
-int	x224connect(Rdp*);
-int	x224disconnect(Rdp*);
+int	x224handshake(Rdp*);
+int	x224hangup(Rdp*);
 void	sendclientinfo(Rdp*);
 void	confirmactive(Rdp*);
 void	assync(Rdp*);
@@ -112,11 +111,13 @@ enum /* Msg.type */
 	Mconnected,	/* S: MCS Connect Response + GCC Confce Create Resp */
 	Mactivated,	/* C: MCS Confirm Active */
 	Mclosing,		/* S: Disconnect Provider Ultimatum */
-	Aflow,		/* S: T.128 Flow PDU */
+	Mvcdata,		/* S,C: MCS virtual channel data, raw */
 	Async,		/* C: MPAS 2.2.1.14 Client Synchronize PDU */
 	Actl,			/* C: MPAS 2.2.1.15 Control PDU */
 	Afontls,		/* C: MPAS 2.2.1.18 Client Font List PDU */
 	Ainput,      	/* C: MPAS (T.128) Input Event */
+	Aupdate,		/* S: T.128 ASPDU or a "Fast-Path" RDP PDU */
+	Aflow,		/* S: T.128 Flow PDU */
 	Dclientinfo,	/* C: RDP 2.2.1.11 Client Info */
 	Dsupress,		/* C: RDP 2.2.11.3 Suppress Output PDU */
 	Lneedlicense,	/* S: Licensing PDU */
@@ -124,8 +125,6 @@ enum /* Msg.type */
 	Lhavechal,	/* S: Licensing PDU */
 	Lnolicense,	/* C: Licensing PDU */
 	Ldone,		/* S: Licensing PDU */
-	Aupdate,		/* S: T.128 ASPDU or a "Fast-Path" RDP PDU */
-	Mvcdata,		/* S,C: MCS virtual channel data, raw */
 };
 
 enum /* Msg.negproto - for msg.c x224.c */
@@ -160,8 +159,7 @@ struct Msg {
 	int	mtype;	/* Ainput */
 	ulong	msec;	/* Ainput */
 	ulong	flags;	/* Ainput, Mvcdata */
-	int	iarg1;	/* Ainput */
-	int	iarg2;	/* Ainput */
+	int	iarg[2];	/* Ainput */
 	int	action;	/* Actl */
 	int	allow;	/* Dsupress */
 	uchar*	data;	/* Mvcdata, Aupdate */

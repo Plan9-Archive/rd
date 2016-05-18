@@ -128,6 +128,7 @@ main(int argc, char *argv[])
 
 	keyspec = "";
 	doauth = 1;
+	label = nil;
 
 	ARGBEGIN {
 	case 'A':

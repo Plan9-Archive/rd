@@ -122,10 +122,8 @@ joinchannel(Rdp* c, int mcsuid, int chanid)
 int
 rdphandshake(Rdp* c)
 {
-	int i;
-	int mcsuid, userchan;
+	int i, nv;
 	Vchan* v;
-	int nv;
 	Msg r;
 	Share u;
 
@@ -137,9 +135,6 @@ rdphandshake(Rdp* c)
 	erectdom(c);
 	if(attachuser(c) < 0)
 		return -1;
-
-	mcsuid = c->mcsuid;
-	userchan = c->userchan;
 
 	if(joinchannel(c, c->mcsuid, c->userchan) < 0)
 		return -1;
@@ -362,7 +357,7 @@ asfontls(Rdp* c)
 }
 
 void
-passinput(Rdp* c, ulong msec, int t, int f, int a, int b)
+passinput(Rdp* c, ulong msec, int typ, int f, int a, int b)
 {
 	Msg t;
 
@@ -370,7 +365,7 @@ passinput(Rdp* c, ulong msec, int t, int f, int a, int b)
 	t.originid = c->userchan;
 	t.shareid = c->shareid;
 	t.msec = msec;
-	t.mtype = t;
+	t.mtype = typ;
 	t.flags = f;
 	t.iarg[0] = a;
 	t.iarg[1] = b;

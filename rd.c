@@ -100,8 +100,6 @@ startsnarfproc(Rdp* c)
 void
 initscreen(Rdp* c)
 {
-	if(c->label == nil)
-		c->label = smprint("rd %s", server);
 	if(initdraw(drawerror, nil, c->label) < 0)
 		sysfatal("initdraw: %r");
 	display->locking = 1;
@@ -142,7 +140,6 @@ main(int argc, char *argv[])
 
 	keyspec = "";
 	doauth = 1;
-	label = nil;
 
 	ARGBEGIN {
 	case 'A':
@@ -194,6 +191,8 @@ main(int argc, char *argv[])
 		}
 	}else
 		c->user = "";
+	if(c->label == nil)
+		c->label = smprint("rd %s", server);
 
 	initvc(c);
 

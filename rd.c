@@ -97,6 +97,20 @@ startsnarfproc(Rdp* c)
 	return 0;
 }
 
+void
+initscreen(Rdp* c)
+{
+	if(c->label == nil)
+		c->label = smprint("rd %s", server);
+	if(initdraw(drawerror, nil, c->label) < 0)
+		sysfatal("initdraw: %r");
+	display->locking = 1;
+	unlockdisplay(display);
+
+	c->ysz = Dy(screen->r);
+	c->xsz = (Dx(screen->r) +3) & ~3;
+}
+
 static int killpid[32];
 static int nkillpid;
 
@@ -120,7 +134,7 @@ void
 main(int argc, char *argv[])
 {
 	int doauth;
-	char *server, *addr, *keyspec, *label;
+	char *server, *addr, *keyspec;
 	UserPasswd *creds;
 	Rdp* c;
 
@@ -138,7 +152,7 @@ main(int argc, char *argv[])
 		keyspec = EARGF(usage());
 		break;
 	case 'T':
-		label = strdup(EARGF(usage()));
+		c->label = strdup(EARGF(usage()));
 		break;
 	case 'd':
 		c->windom = strdup(EARGF(usage()));
@@ -189,17 +203,7 @@ main(int argc, char *argv[])
 		sysfatal("dial %s: %r", addr);
 	if(x224handshake(c) < 0)
 		sysfatal("X.224 handshake: %r");
-
-	if(label == nil)
-		label = smprint("rd %s", server);
-	if(initdraw(drawerror, nil, label) < 0)
-		sysfatal("initdraw: %r");
-	display->locking = 1;
-	unlockdisplay(display);
-
-	c->ysz = Dy(screen->r);
-	c->xsz = (Dx(screen->r) +3) & ~3;
-
+	initscreen(c);
 	if(rdphandshake(c) < 0)
 		sysfatal("handshake: %r");
 

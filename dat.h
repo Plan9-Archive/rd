@@ -25,6 +25,7 @@ struct Rdp
 {
 	int		fd;			/* connection I/O descriptor */
 	long		sproto;		/* magic to bounce back to server */
+	char		*label;		/* window label */
 	char		*local;		/* local system name */
 	char		*user;		/* user name for auto logon  */
 	char		*windom;		/* domain for auto logon */
@@ -45,7 +46,7 @@ struct Rdp
 	Vchan	*vc;			/* static virtual channels table */
 	uint		nvc;			/* number of vctab entries */
 	uchar	cmap[256];	/* rfb color map for depths ≤ 8 */
-	uchar	rbuf[MAXTPDU];	/* read buffer */
+	uchar	rbuf[MAXTPDU];	/* read buffer */	
 };
 int	starttls(Rdp*);
 int	rdphandshake(Rdp*);
@@ -64,10 +65,10 @@ void	clipannounce(Rdp*);
 void	clipvcfn(Rdp*, uchar*,uint);
 void	pollsnarf(Rdp*);
 
+void	initscreen(Rdp*);
 void	readkbd(Rdp*);
 void	readdevmouse(Rdp*);
 void	eresized(Rdp*, int);
-
 
 struct Vchan
 {

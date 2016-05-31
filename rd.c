@@ -320,7 +320,7 @@ scanimgupdate(Rdp *c, Share* as)
 			freeimage(img);
 		img = allocimage(display, rs, c->chan, 0, DNofill);
 		if(img == nil)
-			sysfatal("%r");
+			sysfatal("scanimgupdate: %r");
 	}
 
 	while(p<ep && nr>0){

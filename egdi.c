@@ -385,7 +385,7 @@ pickimage(int cid, int coff, Rectangle r, ulong chan)
 			freeimage(img);
 		img = allocimage(display, r, chan, 0, DNofill);
 		if(img == nil)
-			sysfatal("%r");
+			return nil;
 		imgcache[cid][coff] = img;
 	}
 	return img;
@@ -425,7 +425,7 @@ cacheimage(Rdp* c, uchar* p, uchar* ep, int xorder, int opt)
 	if(p+size > ep)
 		sysfatal("cacheimage: size: %s", Eshort);
 	if((img = pickimage(cid, coff, r, chan)) == nil)
-		sysfatal("pickimage: %r");
+		sysfatal("cacheimage: pickimage: %r");
 	err = (zip? loadrle : loadbmp)(img, r, p, size, c->cmap);
 	if(err < 0)
 		sysfatal("%r");
@@ -496,7 +496,7 @@ cacheimage2(Rdp* c, uchar* p,uchar* ep, int xorder, int opt)
 	if(p+size > ep)
 		sysfatal("cacheimage2: size: %s", Eshort);
 	if((img = pickimage(cid, coff, r, chan)) == nil)
-		sysfatal("pickimage: %r");
+		sysfatal("cacheimage2: pickimage: %r");
 	err = (zip? loadrle : loadbmp)(img, r, p, size, c->cmap);
 	if(err < 0)
 		sysfatal("%r");

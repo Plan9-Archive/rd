@@ -40,7 +40,6 @@ int		mktpcr(uchar*,int,int);
 int		mktpdr(uchar*,int,int);
 int		istpkt(uchar*,uchar*);
 int		tptype(uchar*,uchar*);
-int		istpdat(uchar*,uchar*);
 uchar*	tpdat(uchar*,uchar*);
 
 /* rd.c */

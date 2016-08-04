@@ -33,13 +33,6 @@ tptype(uchar* p, uchar* ep)
 	return p[5];
 }
 
-int
-istpdat(uchar* p, uchar* ep)
-{
-	return (tptype(p,ep) == Data);
-}
-
-
 /*
  * read a PDU: either TPKT-encapsulated TPDU or Fast-Path Update PDU
  */

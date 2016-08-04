@@ -113,7 +113,7 @@ pbshort(uchar* p, int v)
 int
 mcstype(uchar* p, uchar* ep)
 {
-	if(!istpdat(p,ep)){
+	if(tptype(p,ep) != Data){
 		werrstr("not an X.224 Data TPDU");
 		return -1;
 	}

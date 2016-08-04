@@ -109,14 +109,12 @@ mktpcr(uchar* buf, int nbuf, int ndata)
 		return -1;
 	}
 
-	/*
-	 * TPKT header: version[1] unused[1] len[2]
-	 * ConReq: hdlen[1] type[1] dstref[2] srcref[2] class[1]
-	 */
+	/* TPKT header: version[1] unused[1] len[2] */
 	p[0] = 0x03;
 	p[1] = 0;
 	PSHORTB(p+2, size);
 
+	/* ConReq: hdlen[1] type[1] dstref[2] srcref[2] class[1] */
 	p[4+0] = 7-1+ndata;
 	p[4+1] = ConReq;
 	PSHORTB(p+4+2, 0);

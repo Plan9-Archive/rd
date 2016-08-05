@@ -332,10 +332,10 @@ scanupdates(Rdp* c, Msg* m)
 			scanorders(c, &u);
 			break;
 		case ShUimg:
-			scanimgupdate(c, &u);
+			drawimgupdate(c, &u);
 			break;
 		case ShUcmap:
-			scancmap(c, &u);
+			loadcmap(c, &u);
 			break;
 		case ShUwarp:
 			warpmouse(u.x, u.y);
@@ -348,7 +348,7 @@ scanupdates(Rdp* c, Msg* m)
 
 /* 2.2.9.1.1.3.1.2.1 Bitmap Update Data (TS_UPDATE_BITMAP_DATA) */
 void
-scanimgupdate(Rdp *c, Share* as)
+drawimgupdate(Rdp *c, Share* as)
 {
 	uchar* p, *ep;
 	int n, err, nr;
@@ -371,7 +371,7 @@ scanimgupdate(Rdp *c, Share* as)
 			freeimage(img);
 		img = allocimage(display, rs, c->chan, 0, DNofill);
 		if(img == nil)
-			sysfatal("scanimgupdate: %r");
+			sysfatal("drawimgupdate: %r");
 	}
 
 	while(p<ep && nr>0){
@@ -397,26 +397,4 @@ scanimgupdate(Rdp *c, Share* as)
 	flushimage(display, 1);
 	if(display->locking)
 		unlockdisplay(display);
-}
-
-void
-scancmap(Rdp* c, Share* as)
-{
-	int i, n;
-	uchar *p,  *ep, *cmap;
-
-	p = as->data;
-	ep = as->data + as->ndata;
-	cmap = c->cmap;
-
-	n = GSHORT(p+4);
-	p += 8;
-	if(n > sizeof(c->cmap)){
-		fprint(2, "scancmap: data too big");
-		return;
-	}
-	if(p+3*n > ep)
-		sysfatal(Eshort);
-	for(i = 0; i<n; p+=3)
-		cmap[i++] = rgb2cmap(p[0], p[1], p[2]);
 }

@@ -68,3 +68,29 @@ loadrle(Image *i, Rectangle r, uchar *data, int ndata, uchar *cmap)
 	free(buf);
 	return nb;
 }
+
+void
+loadcmap(Rdp* c, Share* as)
+{
+	int i, n;
+	uchar *p,  *ep, *cmap;
+
+	if(as->type != ShUcmap){
+		fprint(2, "loadcmap: bad share type");
+		return;
+	}
+	p = as->data;
+	ep = as->data + as->ndata;
+	cmap = c->cmap;
+
+	n = GSHORT(p+4);
+	p += 8;
+	if(n > sizeof(c->cmap)){
+		fprint(2, "loadcmap: data too big");
+		return;
+	}
+	if(p+3*n > ep)
+		sysfatal(Eshort);
+	for(i = 0; i<n; p+=3)
+		cmap[i++] = rgb2cmap(p[0], p[1], p[2]);
+}

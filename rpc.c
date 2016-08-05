@@ -169,7 +169,7 @@ rdphandshake(Rdp* c)
 				c->hupreason = u.err;
 				break;
 			case ShActivate:
-				activating(c, &u);
+				activate(c, &u);
 				return 0;
 			}
 		}
@@ -178,7 +178,7 @@ rdphandshake(Rdp* c)
 
 /* 2.2.1.13.1 Server Demand Active PDU */
 void
-activating(Rdp* c, Share* as)
+activate(Rdp* c, Share* as)
 {
 	Caps rcaps;
 
@@ -213,7 +213,7 @@ activating(Rdp* c, Share* as)
 }
 
 void
-deactivating(Rdp* c, Share*)
+deactivate(Rdp* c, Share*)
 {
 	c->active = 0;
 }
@@ -231,20 +231,20 @@ finalhandshake(Rdp* c)
 
 	for(;;){
 		if(readmsg(c, &r) <= 0)
-			sysfatal("activating: readmsg: %r");
+			sysfatal("activate: readmsg: %r");
 		switch(r.type){
 		default:
-			fprint(2, "activating: unhandled PDU type %d\n", u.type);
+			fprint(2, "activate: unhandled PDU type %d\n", u.type);
 			break;
 		case Mclosing:
 			fprint(2, "disconnecting early");
 			return;
 		case Aupdate:
 			if(r.getshare(&u, r.data, r.ndata) < 0)
-				sysfatal("activating: r.getshare: %r");
+				sysfatal("activate: r.getshare: %r");
 			switch(u.type){
 			default:
-				fprint(2, "activating: unhandled ASPDU type %d\n", u.type);
+				fprint(2, "activate: unhandled ASPDU type %d\n", u.type);
 				break;
 			case ShSync:
 			case ShCtl:
@@ -387,4 +387,76 @@ turnupdates(Rdp* c, int allow)
 	writemsg(c, &t);
 }
 
+void
+readnet(Rdp* c)
+{
+	Msg r;
 
+	for(;;){
+		if(readmsg(c, &r) <= 0)
+			return;
+
+		switch(r.type){
+		case Mclosing:
+			return;
+		case Mvchan:
+			scanvc(c, &r);
+			break;
+		case Aupdate:
+			scanupdates(c, &r);
+			break;
+		case 0:
+			fprint(2, "unsupported PDU\n");
+			break;
+		default:
+			fprint(2, "r.type %d is not expected\n", r.type);
+		}
+	}
+}
+
+void
+scanupdates(Rdp* c, Msg* m)
+{
+	int n;
+	uchar *p, *ep;
+	Share u;
+
+	p = m->data;
+	ep = m->data + m->ndata;
+
+	for(; p < ep; p += n){
+		n = m->getshare(&u, p, ep-p);
+		if(n < 0)
+			sysfatal("scanupdates: %r");
+
+		switch(u.type){
+		default:
+			if(u.type != 0)
+				fprint(2, "scanupdates: unhandled %d\n", u.type);
+			break;
+		case ShDeactivate:
+			deactivate(c, &u);
+			break;
+		case ShActivate:	// server may engage capability re-exchange
+			activate(c, &u);
+			break;
+		case ShEinfo:
+			c->hupreason = u.err;
+			break;
+		case ShUorders:
+			scanorders(c, &u);
+			break;
+		case ShUimg:
+			drawimgupdate(c, &u);
+			break;
+		case ShUcmap:
+			loadcmap(c, &u);
+			break;
+		case ShUwarp:
+			warpmouse(u.x, u.y);
+			break;
+		case Aflow:
+			break;
+		}
+	}
+}

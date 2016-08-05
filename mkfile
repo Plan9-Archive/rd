@@ -7,6 +7,7 @@ HFILES=fns.h dat.h
 OFILES=\
 	alloc.$O\
 	cap.$O\
+	draw.$O\
 	eclip.$O\
 	egdi.$O\
 	ele.$O\
@@ -29,6 +30,7 @@ OFILES=\
 THREADOFILES=\
 	alloc.$O\
 	cap.$O\
+	draw.$O\
 	eclip.$O\
 	egdi.$O\
 	ele.$O\

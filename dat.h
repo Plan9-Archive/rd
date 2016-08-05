@@ -223,8 +223,8 @@ struct Share
 int	getshareT(Share*, uchar*, uint);	/* T.128 ASPDU updates */
 int	getshareF(Share*, uchar*, uint);	/* RDP Fast-Path updates */
 
-void	activating(Rdp*,Share*);
-void	deactivating(Rdp*,Share*);
+void	activate(Rdp*,Share*);
+void	deactivate(Rdp*,Share*);
 void	finalhandshake(Rdp*);
 void	drawimgupdate(Rdp*,Share*);
 void	loadcmap(Rdp*,Share*);

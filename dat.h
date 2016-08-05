@@ -112,7 +112,7 @@ enum /* Msg.type */
 	Mconnected,	/* S: MCS Connect Response + GCC Confce Create Resp */
 	Mactivated,	/* C: MCS Confirm Active */
 	Mclosing,		/* S: Disconnect Provider Ultimatum */
-	Mvcdata,		/* S,C: MCS virtual channel data, raw */
+	Mvchan,		/* S,C: MCS virtual channel data, raw */
 	Async,		/* C: MPAS 2.2.1.14 Client Synchronize PDU */
 	Actl,			/* C: MPAS 2.2.1.15 Control PDU */
 	Afontls,		/* C: MPAS 2.2.1.18 Client Font List PDU */
@@ -139,7 +139,7 @@ struct Msg {
 	int	type;
 	int	negproto;	/* Xconnect, Xconnected */
 	int	mcsuid;	/* Mattached, Mjoin, Mactivated, Async & more */
-	int	chanid;	/* Mjoin, Mvcdata */
+	int	chanid;	/* Mjoin, Mvchan */
 	int	originid;	/* Mactivated, Async, Actl, Afontls, Ainput, Dsupress */
 	int	shareid;	/* Mactivated, Async, Actl, Afontls, Ainput, Dsupress */
 	int	ver;	/* Mconnect, Mconnected */
@@ -159,13 +159,13 @@ struct Msg {
 	int	dologin;	/* Dclientinfo */
 	int	mtype;	/* Ainput */
 	ulong	msec;	/* Ainput */
-	ulong	flags;	/* Ainput, Mvcdata */
+	ulong	flags;	/* Ainput, Mvchan */
 	int	iarg[2];	/* Ainput */
 	int	action;	/* Actl */
 	int	allow;	/* Dsupress */
-	uchar*	data;	/* Mvcdata, Aupdate */
-	uint	ndata;	/* Mvcdata, Aupdate */
-	uint	len;	/* Mvcdata */
+	uchar*	data;	/* Mvchan, Aupdate */
+	uint	ndata;	/* Mvchan, Aupdate */
+	uint	len;	/* Mvchan */
 	int	(*getshare)(Share*, uchar*, uint);	/* Aupdate */
 };
 
@@ -188,7 +188,7 @@ Msgget	getlicensemsg;
 Msgput	putlicensemsg;
 void 	respondlicense(Rdp*,Msg*);
 
-void	scanvcdata(Rdp*, Msg*);
+void	scanvc(Rdp*, Msg*);
 void	scanupdates(Rdp*, Msg*);
 
 enum /* Share.type */

@@ -63,7 +63,7 @@ namevc(char* name)
 }
 
 void
-scanvcdata(Rdp* c, Msg* m)
+scanvc(Rdp* c, Msg* m)
 {
 	Vchan* vc;
 	int n;
@@ -109,7 +109,7 @@ sendvc(Rdp* c, char* cname, uchar* a, int n)
 	if(vc->mcsid < 0)
 		return -1;
 
-	t.type = Mvcdata;
+	t.type = Mvchan;
 	t.originid = c->userchan;
 	t.chanid = vc->mcsid;
 	t.flags = First | Vis;

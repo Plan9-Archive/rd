@@ -234,8 +234,8 @@ readnet(Rdp* c)
 		switch(r.type){
 		case Mclosing:
 			return;
-		case Mvcdata:
-			scanvcdata(c, &r);
+		case Mvchan:
+			scanvc(c, &r);
 			break;
 		case Aupdate:
 			scanupdates(c, &r);

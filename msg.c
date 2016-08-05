@@ -184,7 +184,7 @@ putmsg(uchar* b, uint nb, Msg* m)
 		/* 2.2.1.13.2 Client Confirm Active PDU */
 		return putconfirmactive(b, nb, m);
 
-	case Mvcdata:
+	case Mvchan:
 		nld = m->ndata+8;
 		p = txprep(b, nb, nld, m->chanid, m->originid, 0);
 		if(p == nil)
@@ -381,7 +381,7 @@ getmsg(Msg* m, uchar* b, uint nb)
 			if(p == nil)
 				return -1;
 			if(m->chanid != GLOBALCHAN){
-				m->type = Mvcdata;
+				m->type = Mvchan;
 				m->len = GLONG(p+0);
 				m->flags = GLONG(p+4);
 				m->data = p+8;

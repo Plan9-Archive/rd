@@ -5,6 +5,7 @@ BIN=/$objtype/bin
 
 HFILES=fns.h dat.h
 OFILES=\
+	alloc.$O\
 	cap.$O\
 	eclip.$O\
 	egdi.$O\

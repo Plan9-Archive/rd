@@ -25,21 +25,6 @@ usage(void)
 	exits("usage");
 }
 
-long
-writen(int fd, void* buf, long nbytes)
-{
-	long n, sofar;
-
-	sofar = 0;
-	while(sofar < nbytes){
-		n = write(fd, buf, nbytes-sofar);
-		if(n <= 0)
-			break;
-		sofar += n;
-	}
-	return sofar;
-}
-
 static int
 startmouseproc(Rdp* c)
 {
@@ -367,40 +352,4 @@ scancmap(Rdp* c, Share* as)
 		sysfatal(Eshort);
 	for(i = 0; i<n; p+=3)
 		cmap[i++] = rgb2cmap(p[0], p[1], p[2]);
-}
-
-void*
-emalloc(ulong n)
-{
-	void *b;
-
-	b = mallocz(n, 1);
-	if(b == nil)
-		sysfatal("out of memory allocating %lud: %r", n);
-	setmalloctag(b, getcallerpc(&n));
-	return b;
-}
-
-void*
-erealloc(void *a, ulong n)
-{
-	void *b;
-
-	b = realloc(a, n);
-	if(b == nil)
-		sysfatal("out of memory re-allocating %lud: %r", n);
-	setrealloctag(b, getcallerpc(&a));
-	return b;
-}
-
-char*
-estrdup(char *s)
-{
-	char *b;
-
-	b = strdup(s);
-	if(b == nil)
-		sysfatal("strdup: %r");
-	setmalloctag(b, getcallerpc(&s));
-	return b;
 }

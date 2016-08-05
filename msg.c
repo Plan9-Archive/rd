@@ -445,7 +445,7 @@ writemsg(Rdp* c, Msg* m)
 	int fd, n;
 
 	fd = c->fd;
-	if((n = putmsg(buf, sizeof buf, m)) < 0 || writen(fd, buf, n) != n)
+	if((n = putmsg(buf, sizeof buf, m)) < 0 || write(fd, buf, n) != n)
 		return -1;
 
 	return n;

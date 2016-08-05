@@ -47,8 +47,6 @@ void		atexitkiller(void);
 void		atexitkill(int pid);
 void*	emalloc(ulong);
 void*	erealloc(void*,ulong);
-char*	estrdup(char*);
-long		writen(int,void*,long);
 
 uchar*	gblen(uchar*,uchar*,int*);
 uchar*	gbtag(uchar*,uchar*,int*);

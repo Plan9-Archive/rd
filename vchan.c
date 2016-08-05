@@ -62,33 +62,52 @@ namevc(char* name)
 	return nil;
 }
 
-void
-scanvc(Rdp* c, Msg* m)
+static int
+defragvc(Rdp*, Msg* m)
 {
 	Vchan* vc;
 	int n;
 	
 	vc = lookupvc(m->chanid);
 	if(vc == nil)
-		return;
+		return -1;
 
 	if(m->flags&First)
 		vc->pos = 0;
 
-	vc->buf = erealloc(vc->buf, m->len);
-	vc->nb = m->len;
-	n = vc->nb - vc->pos;
+	if(m->len > vc->nb){
+		vc->buf = erealloc(vc->buf, m->len);
+		vc->nb = m->len;
+	}
+	n = m->len - vc->pos;
 	if(n > m->ndata)
 		n = m->ndata;
 	memcpy(vc->buf+vc->pos, m->data, n);
 	vc->pos += n;
 
 	if(m->flags&Last){
-		vc->fn(c, vc->buf, vc->nb);
-		free(vc->buf);
-		vc->buf = nil;
-		vc->nb = 0;
+		m->data = vc->buf;
+		m->ndata = m->len;
+		return m->len;
 	}
+	return 0;
+}
+
+static void
+callvcfunc(Rdp *c, Msg* m)
+{
+	Vchan* vc;
+	vc = lookupvc(m->chanid);
+	if(vc == nil)
+		return;
+	vc->fn(c, m->data, m->ndata);
+}
+
+void
+scanvc(Rdp* c, Msg* m)
+{
+	if(defragvc(c, m) > 0)
+		callvcfunc(c, m);
 }
 
 int

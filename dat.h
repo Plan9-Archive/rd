@@ -67,6 +67,7 @@ void	pollsnarf(Rdp*);
 
 void	initscreen(Rdp*);
 void	readkbd(Rdp*);
+void	sendkbd(Rdp*, Rune);
 void	readdevmouse(Rdp*);
 void	eresized(Rdp*, int);
 

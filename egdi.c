@@ -198,9 +198,11 @@ scanorders(Rdp* c, Share* as)
 		if(p == nil)
 			break;
 	}
-	lockdisplay(display);
+	if(display->locking)
+		lockdisplay(display);
 	flushimage(display, 1);
-	unlockdisplay(display);
+	if(display->locking)
+		unlockdisplay(display);
 	return;
 
 ErrNstd:
@@ -314,9 +316,11 @@ scrblt(Rdp*, uchar* p, uchar* ep, int ctl, int fmask)
 	rs = rectaddpt(rs, screen->r.min);
 	ps = addpt(pt, screen->r.min);
 
-	lockdisplay(display);
+	if(display->locking)
+		lockdisplay(display);
 	draw(screen, rs, screen, nil, ps);
-	unlockdisplay(display);
+	if(display->locking)
+		unlockdisplay(display);
 
 	return p;
 }
@@ -358,13 +362,15 @@ memblt(Rdp*, uchar* p, uchar* ep, int ctl, int fmask)
 		return p;
 	}
 
-	lockdisplay(display);
+	if(display->locking)
+		lockdisplay(display);
 	if(ctl&Clipped)
 		replclipr(screen, screen->repl, rectaddpt(gc.clipr, screen->r.min));
 	draw(screen, rectaddpt(r, screen->r.min), img, nil, pt);
 	if(ctl&Clipped)
 		replclipr(screen, screen->repl, screen->r);
-	unlockdisplay(display);
+	if(display->locking)
+		unlockdisplay(display);
 
 	return p;
 }

@@ -40,7 +40,8 @@ eresized(Rdp* c, int)
 	int fd;
 	Point d;
 
-	lockdisplay(display);
+	if(display->locking)
+		lockdisplay(display);
 	if(getwindow(display, Refnone) < 0)
 		sysfatal("resize failed: %r");
 
@@ -55,7 +56,8 @@ eresized(Rdp* c, int)
 	}
 	turnupdates(c, 0);
 	turnupdates(c, !ishidden());
-	unlockdisplay(display);
+	if(display->locking)
+		unlockdisplay(display);
 }
 void
 initsnarf(void)

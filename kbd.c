@@ -138,110 +138,88 @@ kbdsendrune(Rdp* c, Rune r)
 }
 
 void
-readkbd(Rdp* c)
+sendkbd(Rdp* c, Rune r)
 {
-	char buf[256], k[10];
-	int ctlfd, fd, kr, kn, w;
 	uchar mod, sc;
-	Rune r;
 
-	if((fd = open("/dev/cons", OREAD)) < 0)
-		sysfatal("open %s: %r", buf);
-	if((ctlfd = open("/dev/consctl", OWRITE)) < 0)
-		sysfatal("open %s: %r", buf);
-	write(ctlfd, "rawon", 5);
+	if(r < nelem(rune2scan)){
+		sc = rune2scan[r].sc;
+		mod = rune2scan[r].mod;
+		kbdsendscan(c, sc, mod);
+		return;
+	}
 
-	kn = 0;
-	for(;;){
-		while(!fullrune(k, kn)){
-			kr = read(fd, k+kn, sizeof k - kn);
-			if(kr <= 0)
-				sysfatal("bad read from kbd");
-			kn += kr;
-		}
-		w = chartorune(&r, k);
-		kn -= w;
-		memmove(k, &k[w], kn);
-
-		if(r < nelem(rune2scan)){
-			sc = rune2scan[r].sc;
-			mod = rune2scan[r].mod;
-			kbdsendscan(c, sc, mod);
-			continue;
-		}
-
-		switch(r){
-		case Kins:
-			kbdsendscan(c, Sins, 0);
-			break;
-		case Kdel:
-			kbdsendscan(c, Sdel, 0);
-			break;
-		case Khome:
-			kbdsendscan(c, Shome, 0);
-			break;
-		case Kend:
-			kbdsendscan(c, Send, 0);
-			break;
-		case Kpgup:
-			kbdsendscan(c, Spgup, 0);
-			break;
-		case Kpgdown:
-			kbdsendscan(c, Spgdown, 0);
-			break;
-		case Kup:
-			kbdsendscan(c, Sup, 0);
-			break;
-		case Kdown:
-			kbdsendscan(c, Sdown,0 );
-			break;
-		case Kleft:
-			kbdsendscan(c, Sleft, 0);
-			break;
-		case Kright:
-			kbdsendscan(c, Sright, 0);
-			break;
-		case Kbrk:
-			exits("interrupt");
-			break;
-		case Kprint:
-			kbdsendscan(c, Sprint, 0);
-			break;
-		case KF|1:
-		case KF|2:
-		case KF|3:
-		case KF|4:
-		case KF|5:
-		case KF|6:
-		case KF|7:
-		case KF|8:
-		case KF|9:
-		case KF|10:
-			kbdsendscan(c, SF1+r-(KF|1), 0);
-			break;
-		case KF|11:
-			kbdsendscan(c, SF11, 0);
-			break;
-		case KF|12:
-			kbdsendscan(c, SF12, 0);
-			break;
-		case '0':
-			kbdsendscan(c, S0, 0);
-			break;
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
-			kbdsendscan(c, S1+r-'1', 0);
-			break;
-		default:
-			kbdsendrune(c, r);
-			break;
-		}
+	switch(r){
+	case Kins:
+		kbdsendscan(c, Sins, 0);
+		break;
+	case Kdel:
+		kbdsendscan(c, Sdel, 0);
+		break;
+	case Khome:
+		kbdsendscan(c, Shome, 0);
+		break;
+	case Kend:
+		kbdsendscan(c, Send, 0);
+		break;
+	case Kpgup:
+		kbdsendscan(c, Spgup, 0);
+		break;
+	case Kpgdown:
+		kbdsendscan(c, Spgdown, 0);
+		break;
+	case Kup:
+		kbdsendscan(c, Sup, 0);
+		break;
+	case Kdown:
+		kbdsendscan(c, Sdown,0 );
+		break;
+	case Kleft:
+		kbdsendscan(c, Sleft, 0);
+		break;
+	case Kright:
+		kbdsendscan(c, Sright, 0);
+		break;
+	case Kbrk:
+		exits("interrupt");
+		break;
+	case Kprint:
+		kbdsendscan(c, Sprint, 0);
+		break;
+	case KF|1:
+	case KF|2:
+	case KF|3:
+	case KF|4:
+	case KF|5:
+	case KF|6:
+	case KF|7:
+	case KF|8:
+	case KF|9:
+	case KF|10:
+		kbdsendscan(c, SF1+r-(KF|1), 0);
+		break;
+	case KF|11:
+		kbdsendscan(c, SF11, 0);
+		break;
+	case KF|12:
+		kbdsendscan(c, SF12, 0);
+		break;
+	case '0':
+		kbdsendscan(c, S0, 0);
+		break;
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+		kbdsendscan(c, S1+r-'1', 0);
+		break;
+	default:
+		kbdsendrune(c, r);
+		break;
 	}
 }

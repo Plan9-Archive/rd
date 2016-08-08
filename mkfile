@@ -3,6 +3,7 @@
 TARG=rd
 BIN=/$objtype/bin
 
+CLEANFILES=$O.thread
 HFILES=fns.h dat.h
 OFILES=\
 	alloc.$O\

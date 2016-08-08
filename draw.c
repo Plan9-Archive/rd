@@ -10,25 +10,22 @@ drawimgupdate(Rdp *c, Share* s)
 {
 	uchar* p, *ep;
 	int n, err, nr;
-	Rectangle r, rs, d;
+	Rectangle r;
 	Imgupd iu;
-	static Image* img;
+	static Image* pad;
 
 	assert(s->type == ShUimg);
 	p = s->data;
 	ep = s->data + s->ndata;
 	nr = s->nrect;
 
-	rs = rectaddpt(Rpt(ZP, Pt(c->xsz, c->ysz)), screen->r.min);
-
 	if(display->locking)
 		lockdisplay(display);
 
-	if(img==nil || !eqrect(img->r, rs)){
-		if(img != nil)
-			freeimage(img);
-		img = allocimage(display, rs, c->chan, 0, DNofill);
-		if(img == nil)
+	if(pad==nil || eqrect(pad->r, screen->r) != 0){
+		freeimage(pad);
+		pad = allocimage(display, screen->r, c->chan, 0, DNofill);
+		if(pad==nil)
 			sysfatal("drawimgupdate: %r");
 	}
 
@@ -36,19 +33,14 @@ drawimgupdate(Rdp *c, Share* s)
 		/* 2.2.9.1.1.3.1.2.2 Bitmap Data (TS_BITMAP_DATA) */
 		if((n = getimgupd(&iu, p, ep-p)) < 0)
 			sysfatal("getimgupd: %r");
-		if(iu.depth != img->depth)
+		if(iu.depth != pad->depth)
 			sysfatal("bad image depth");
-
-		d.min = Pt(iu.x, iu.y);
-		d.max = Pt(iu.xm+1, iu.ym+1);
-		r.min = ZP;
-		r.max = Pt(iu.xsz, iu.ysz);
-		r = rectaddpt(r, img->r.min);
-
-		err = (iu.iscompr? loadrle : loadbmp)(img, r, iu.bytes, iu.nbytes, c->cmap);
+		r = Rect(iu.x, iu.y, iu.xm+1, iu.ym+1);
+		r = rectaddpt(r, screen->r.min);
+		err = (iu.iscompr? loadrle : loadbmp)(pad, r, iu.bytes, iu.nbytes, c->cmap);
 		if(err < 0)
 			sysfatal("%r");
-		draw(screen, rectaddpt(d, screen->r.min), img, nil, img->r.min);
+		draw(screen, r, pad, nil, r.min);
 		p += n;
 		nr--;
 	}

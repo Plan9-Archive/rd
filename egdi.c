@@ -295,33 +295,26 @@ getoffrect(Rectangle* pr, uchar* p, uchar* ep, int ctl, int fmask){
 static uchar*
 scrblt(Rdp*, uchar* p, uchar* ep, int ctl, int fmask)
 {
-	static Rectangle r;
-	static Point pt;
-	static int rop3;
-	Rectangle rs;
-	Point ps;
+	static	Rectangle wr;
+	static	Point wp;
+	static	int rop3;
+	Rectangle r, sr;
 
-	p = getoffrect(&r, p, ep, ctl, fmask);
+	p = getoffrect(&wr, p, ep, ctl, fmask);
 	if(fmask&1<<4)
 		rop3 = *p++;
-	p = getpt(&pt, p, ep, ctl, fmask>>5);
+	p = getpt(&wp, p, ep, ctl, fmask>>5);
+	if(ctl&Clipped)
+		rectclip(&wr, gc.clipr);
 
 	if(rop3 != ROP2_COPY){
 		fprint(2, "scrblt: rop3 %#hhux is not supported\n", rop3);
 		return p;
 	}
-	rs = r;
-	if(ctl&Clipped)
-		rectclip(&rs, gc.clipr);	// not replclipr: need to clip dst only
-	rs = rectaddpt(rs, screen->r.min);
-	ps = addpt(pt, screen->r.min);
 
-	if(display->locking)
-		lockdisplay(display);
-	draw(screen, rs, screen, nil, ps);
-	if(display->locking)
-		unlockdisplay(display);
-
+	r = rectaddpt(wr, screen->r.min);
+	sr = rectaddpt(Rpt(wp, Pt(Dx(r), Dy(r))), screen->r.min);
+	scroll(display, r, sr);
 	return p;
 }
 

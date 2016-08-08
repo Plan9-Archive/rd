@@ -56,3 +56,14 @@ drawimgupdate(Rdp *c, Share* s)
 	if(display->locking)
 		unlockdisplay(display);
 }
+
+void
+scroll(Display* d, Rectangle r, Rectangle sr)
+{
+	if(d && d->locking)
+		lockdisplay(d);
+	if(d)
+		draw(d->screenimage, r, d->screenimage, nil, sr.min);
+	if(d && d->locking)
+		unlockdisplay(d);
+}

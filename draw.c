@@ -8,11 +8,11 @@
 void
 drawimgupdate(Rdp *c, Share* s)
 {
+	int (*loadfn)(Image*,Rectangle,uchar*,int,uchar*);
 	uchar* p, *ep;
-	int n, err, nr;
+	int n, nr;
 	Rectangle r;
-	Imgupd iu;
-	int (*loadfunc)(Image*,Rectangle,uchar*,int,uchar*);
+	Imgupd u;
 	static Image* pad;
 
 	assert(s->type == ShUimg);
@@ -29,15 +29,19 @@ drawimgupdate(Rdp *c, Share* s)
 			sysfatal("drawimgupdate: %r");
 	}
 	while(p<ep && nr>0){
-		if((n = getimgupd(&iu, p, ep-p)) < 0)
+		if((n = getimgupd(&u, p, ep-p)) < 0)
 			sysfatal("getimgupd: %r");
-		if(iu.depth != pad->depth)
+		if(u.depth != pad->depth)
 			sysfatal("bad image depth");
-		r = Rect(iu.x, iu.y, iu.xm+1, iu.ym+1);
+
+		loadfn = loadbmp;
+		if(u.iscompr)
+			loadfn = loadrle;
+
+		r = Rect(u.x, u.y, u.xm+1, u.ym+1);
 		r = rectaddpt(r, screen->r.min);
-		loadfunc = (iu.iscompr? loadrle : loadbmp);
-		err = loadfunc(pad, r, iu.bytes, iu.nbytes, c->cmap);
-		if(err < 0)
+
+		if(loadfn(pad, r, u.bytes, u.nbytes, c->cmap) < 0)
 			sysfatal("%r");
 		draw(screen, r, pad, nil, r.min);
 		p += n;

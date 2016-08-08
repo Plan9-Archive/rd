@@ -8,7 +8,7 @@
 #include "dat.h"
 #include "fns.h"
 
-static Image*	imgcache[3][600];
+static Image*	icache[3][600];
 
 /* 2.2.9.1.1.3.1.2.1 Bitmap Update Data (TS_UPDATE_BITMAP_DATA) */
 void
@@ -84,16 +84,16 @@ loadmemimg(Rdp* c, Imgupd* iu)
 
 	r = Rect(0, 0, iu->xsz, iu->ysz);
 
-	if(iu->cid >= nelem(imgcache) || iu->coff >= nelem(*imgcache))
+	if(iu->cid >= nelem(icache) || iu->coff >= nelem(*icache))
 		sysfatal("cacheimage2: bad cache spec [%d %d]", iu->cid, iu->coff);
 
-	img = imgcache[iu->cid][iu->coff];
+	img = icache[iu->cid][iu->coff];
 	if(img==nil || eqrect(img->r, r)==0){
 		freeimage(img);
 		img = allocimage(display, r, c->chan, 0, DNofill);
 		if(img == nil)
 			sysfatal("cacheimage2: %r");
-		imgcache[iu->cid][iu->coff] = img;
+		icache[iu->cid][iu->coff] = img;
 	}
 
 	if(loadfn(img, r, iu->bytes, iu->nbytes, c->cmap) < 0)
@@ -109,18 +109,18 @@ drawmemimg(Rdp*, Imgupd* iu)
 
 	/* called with display locked */
 
-	if(iu->cid >= nelem(imgcache) || iu->coff >= nelem(*imgcache)){
+	if(iu->cid >= nelem(icache) || iu->coff >= nelem(*icache)){
 		fprint(2, "drawmemimg: bad cache spec [%d %d]\n", iu->cid, iu->coff);
 		return;
 	}
-	img = imgcache[iu->cid][iu->coff];
+	img = icache[iu->cid][iu->coff];
 	if(img == nil){
 		fprint(2, "drawmemimg: empty cache entry cid %d coff %d\n", iu->cid, iu->coff);
 		return;
 	}
 
 	r = Rect(iu->x, iu->y, iu->xm+1, iu->ym+1);
+	r = rectaddpt(r, screen->r.min);
 	pt = Pt(iu->sx, iu->sy);
-	draw(screen, rectaddpt(r, screen->r.min), img, nil, pt);
-
+	draw(screen, r, img, nil, pt);
 }

@@ -133,7 +133,7 @@ scanorders(Rdp* c, Share* as)
 	p = as->data;
 	ep = as->data + as->ndata;
 
-	while(count-- > 0 && p<ep){	
+	while(count-- > 0 && p<ep){
 		fset = 0;
 		ctl = *p;
 		if(!(ctl&Standard))

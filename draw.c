@@ -1,8 +1,14 @@
+/*
+ * depending on CanMemBlt servers will only do
+ * either loadmeming+drawmemimg or drawimgupdate.
+ */
 #include <u.h>
 #include <libc.h>
 #include <draw.h>
 #include "dat.h"
 #include "fns.h"
+
+static Image*	imgcache[3][600];
 
 /* 2.2.9.1.1.3.1.2.1 Bitmap Update Data (TS_UPDATE_BITMAP_DATA) */
 void
@@ -22,7 +28,7 @@ drawimgupdate(Rdp *c, Share* s)
 
 	if(display->locking)
 		lockdisplay(display);
-	if(pad==nil || eqrect(pad->r, screen->r) != 0){
+	if(pad==nil || eqrect(pad->r, screen->r) == 0){
 		freeimage(pad);
 		pad = allocimage(display, screen->r, c->chan, 0, DNofill);
 		if(pad==nil)
@@ -63,4 +69,58 @@ scroll(Display* d, Rectangle r, Rectangle sr)
 		draw(d->screenimage, r, d->screenimage, nil, sr.min);
 	if(d && d->locking)
 		unlockdisplay(d);
+}
+
+void
+loadmemimg(Rdp* c, Imgupd* iu)
+{
+	int (*loadfn)(Image*,Rectangle,uchar*,int,uchar*);
+	Image* img;
+	Rectangle r;
+
+	loadfn = loadbmp;
+	if(iu->iscompr)
+		loadfn = loadrle;
+
+	r = Rect(0, 0, iu->xsz, iu->ysz);
+
+	if(iu->cid >= nelem(imgcache) || iu->coff >= nelem(*imgcache))
+		sysfatal("cacheimage2: bad cache spec [%d %d]", iu->cid, iu->coff);
+
+	img = imgcache[iu->cid][iu->coff];
+	if(img==nil || eqrect(img->r, r)==0){
+		freeimage(img);
+		img = allocimage(display, r, c->chan, 0, DNofill);
+		if(img == nil)
+			sysfatal("cacheimage2: %r");
+		imgcache[iu->cid][iu->coff] = img;
+	}
+
+	if(loadfn(img, r, iu->bytes, iu->nbytes, c->cmap) < 0)
+		sysfatal("%r");
+}
+
+void
+drawmemimg(Rdp*, Imgupd* iu)
+{
+	Image* img;
+	Rectangle r;
+	Point pt;
+
+	/* called with display locked */
+
+	if(iu->cid >= nelem(imgcache) || iu->coff >= nelem(*imgcache)){
+		fprint(2, "drawmemimg: bad cache spec [%d %d]\n", iu->cid, iu->coff);
+		return;
+	}
+	img = imgcache[iu->cid][iu->coff];
+	if(img == nil){
+		fprint(2, "drawmemimg: empty cache entry cid %d coff %d\n", iu->cid, iu->coff);
+		return;
+	}
+
+	r = Rect(iu->x, iu->y, iu->xm+1, iu->ym+1);
+	pt = Pt(iu->sx, iu->sy);
+	draw(screen, rectaddpt(r, screen->r.min), img, nil, pt);
+
 }

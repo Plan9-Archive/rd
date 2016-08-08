@@ -239,10 +239,18 @@ struct Imgupd {
 	int	ysz;
 	int	depth;
 	int	iscompr;
+	int	cid;
+	int	coff;
+	int	sx;
+	int	sy;
 	int	nbytes;
 	uchar*	bytes;
 };
 int	getimgupd(Imgupd*, uchar*, uint);
+uchar*	getmemblt(Imgupd*, uchar*, uchar*, int, int);
+int	getimgcache2(Imgupd*, uchar*, uint, int, int);
+void	loadmemimg(Rdp*, Imgupd*);
+void	drawmemimg(Rdp*, Imgupd*);
 
 
 enum 

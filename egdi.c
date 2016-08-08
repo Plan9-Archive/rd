@@ -91,22 +91,16 @@ struct Order
 static	uchar*	scrblt(Rdp*, uchar*,uchar*,int,int);
 static	uchar*	memblt(Rdp*, uchar*,uchar*,int,int);
 static	uchar*	cacheimage2(Rdp*, uchar*,uchar*,int,int);
-static	uchar*	cacheimage(Rdp*, uchar*,uchar*,int,int);
 static	uchar*	cachecmap(Rdp*, uchar*,uchar*,int,int);
 
 Order ordtab[NumOrders] = {
 	[ScrBlt]= 		{ 1, scrblt },
 	[MemBlt]=	{ 2, memblt },
-	[PatBlt]= 		{ 2, nil },
-	[OpaqueRect]=	{ 1, nil },
-	[MultiOpaqueRect]=	{ 2, nil },
 };
 
 Order auxtab[8] = {
 	[CacheImage2]=		{ 0, cacheimage2 },
 	[CacheCompressed2]= 	{ 0, cacheimage2 },
-	[CacheImage]=			{ 0, cacheimage },
-	[CacheCompressed]= 	{ 0, cacheimage },
 	[CacheCmap]=			{ 0, cachecmap },
 };
 
@@ -115,8 +109,6 @@ orderSupport[NumOrders] =
 {
 	[CanScrBlt]   	1,
 	[CanMemBlt]	1,
-//	[CanMultiOpaqueRect] 1,
-//	[CanPatBlt]   	1,	/* and OpaqueRect */
 };
 
 static struct GdiContext
@@ -124,8 +116,6 @@ static struct GdiContext
 	int order;
 	Rectangle clipr;
 } gc	= {PatBlt};
-
-static Image*	imgcache[3][600];
 
 static	uchar*	getclipr(Rectangle*,uchar*,uchar*);
 static	uchar*	getpt(Point*,uchar*,uchar*,int,int);
@@ -136,7 +126,7 @@ scanorders(Rdp* c, Share* as)
 {
 	int count;
 	uchar *p, *ep;
-	int ctl, fmask, fsize;
+	int ctl, fset, fsize;
 	int size, opt, xorder;
 
 	count = as->nord;
@@ -144,7 +134,7 @@ scanorders(Rdp* c, Share* as)
 	ep = as->data + as->ndata;
 
 	while(count-- > 0 && p<ep){	
-		fmask = 0;
+		fset = 0;
 		ctl = *p;
 		if(!(ctl&Standard))
 			goto ErrNstd;	// GDI+ or out of sync
@@ -177,13 +167,13 @@ scanorders(Rdp* c, Share* as)
 		default:
 			goto ErrFsize;
 		case 3:
-			fmask = p[0]|(p[1]<<8)|(p[2]<<16);
+			fset = p[0]|(p[1]<<8)|(p[2]<<16);
 			break;
 		case 2:
-			fmask = GSHORT(p);
+			fset = GSHORT(p);
 			break;
 		case 1:
-			fmask = p[0];
+			fset = p[0];
 		case 0:
 			break;
 		}
@@ -194,7 +184,7 @@ scanorders(Rdp* c, Share* as)
 
 		if(ordtab[gc.order].fn == nil)
 			goto ErrNotsup;
-		p = ordtab[gc.order].fn(c, p, ep, ctl, fmask);
+		p = ordtab[gc.order].fn(c, p, ep, ctl, fset);
 		if(p == nil)
 			break;
 	}
@@ -252,22 +242,22 @@ getclipr(Rectangle* pr, uchar* p, uchar* ep)
 }
 
 static uchar*
-getpt(Point* pp, uchar* s, uchar *es,  int ctl, int fmask)
+getpt(Point* pp, uchar* s, uchar *es,  int ctl, int fset)
 {
 	Point p;
 
 	p = *pp;
 	if(ctl&Diff){
-		if(fmask&1<<0)
+		if(fset&1<<0)
 			p.x += (char)*s++;
-		if(fmask&1<<1)
+		if(fset&1<<1)
 			p.y += (char)*s++;
 	}else{
-		if(fmask&1<<0){
+		if(fset&1<<0){
 			p.x = GSHORT(s);
 			s += 2;
 		};
-		if(fmask&1<<1){
+		if(fset&1<<1){
 			p.y = GSHORT(s);
 			s += 2;
 		};
@@ -279,13 +269,13 @@ getpt(Point* pp, uchar* s, uchar *es,  int ctl, int fmask)
 }
 
 static uchar*
-getoffrect(Rectangle* pr, uchar* p, uchar* ep, int ctl, int fmask){
+getoffrect(Rectangle* pr, uchar* p, uchar* ep, int ctl, int fset){
 	Rectangle r;
 
 	r = *pr;
 	r.max = subpt(r.max, r.min);
-	p = getpt(&r.min, p, ep, ctl, fmask);
-	p = getpt(&r.max, p, ep, ctl, fmask>>2);
+	p = getpt(&r.min, p, ep, ctl, fset);
+	p = getpt(&r.max, p, ep, ctl, fset>>2);
 	r.max = addpt(r.max, r.min);
 	*pr = r;
 	return p;
@@ -293,17 +283,17 @@ getoffrect(Rectangle* pr, uchar* p, uchar* ep, int ctl, int fmask){
 
 /* 2.2.2.2.1.1.2.7 ScrBlt (SCRBLT_ORDER) */
 static uchar*
-scrblt(Rdp*, uchar* p, uchar* ep, int ctl, int fmask)
+scrblt(Rdp*, uchar* p, uchar* ep, int ctl, int fset)
 {
 	static	Rectangle wr;
 	static	Point wp;
 	static	int rop3;
 	Rectangle r, sr;
 
-	p = getoffrect(&wr, p, ep, ctl, fmask);
-	if(fmask&1<<4)
+	p = getoffrect(&wr, p, ep, ctl, fset);
+	if(fset&1<<4)
 		rop3 = *p++;
-	p = getpt(&wp, p, ep, ctl, fmask>>5);
+	p = getpt(&wp, p, ep, ctl, fset>>5);
 	if(ctl&Clipped)
 		rectclip(&wr, gc.clipr);
 
@@ -318,48 +308,58 @@ scrblt(Rdp*, uchar* p, uchar* ep, int ctl, int fmask)
 	return p;
 }
 
-/* 2.2.2.2.1.1.2.9 MemBlt (MEMBLT_ORDER) */
-static uchar*
-memblt(Rdp*, uchar* p, uchar* ep, int ctl, int fmask)
+uchar*
+getmemblt(Imgupd* iu, uchar* p, uchar* ep, int ctl, int fset)
 {
 	static int cid;	/* cacheId */
 	static int coff;	/* cacheIndex */
 	static int rop3;
 	static Rectangle r;
 	static Point pt;
-	Image* img;
 
-	if(fmask&1<<0){
+	if(fset&1<<0){
 		cid = GSHORT(p);
 		p += 2;
 	}
-	p = getoffrect(&r, p, ep, ctl, fmask>>1);
-	if(fmask&1<<5)
+	p = getoffrect(&r, p, ep, ctl, fset>>1);
+	if(fset&1<<5)
 		rop3 = *p++;
-	p = getpt(&pt, p, ep, ctl, fmask>>6);
-	if(fmask&1<<8){
+	p = getpt(&pt, p, ep, ctl, fset>>6);
+	if(fset&1<<8){
 		coff = GSHORT(p);
 		p += 2;
 	}
 	if(p>ep)
-		sysfatal("memblt: %s", Eshort);
+		sysfatal("getmemblt: %s", Eshort);
 
 	cid &= Bits8;
-	if(cid >= nelem(imgcache) || coff >= nelem(*imgcache)){
-		fprint(2, "memblt: bad image cache spec [%d %d]\n", cid, coff);
-		return p;
-	}
-	img = imgcache[cid][coff];
-	if(img == nil){
-		fprint(2, "memblt: empty cache entry cid %d coff %d\n", cid, coff);
-		return p;
-	}
+
+	iu->cid = cid;
+	iu->coff = coff;
+	iu->x = r.min.x;
+	iu->y = r.min.y;
+	iu->xm = r.max.x-1;
+	iu->ym = r.max.y-1;
+	iu->xsz = Dx(r);
+	iu->ysz = Dy(r);
+	iu->sx = pt.x;
+	iu->sy = pt.y;
+	return p;
+}
+
+/* 2.2.2.2.1.1.2.9 MemBlt (MEMBLT_ORDER) */
+static uchar*
+memblt(Rdp* c, uchar* p, uchar* ep, int ctl, int fset)
+{
+	Imgupd u;
+
+	p = getmemblt(&u, p, ep, ctl, fset);
 
 	if(display->locking)
 		lockdisplay(display);
 	if(ctl&Clipped)
 		replclipr(screen, screen->repl, rectaddpt(gc.clipr, screen->r.min));
-	draw(screen, rectaddpt(r, screen->r.min), img, nil, pt);
+	drawmemimg(c, &u);
 	if(ctl&Clipped)
 		replclipr(screen, screen->repl, screen->r);
 	if(display->locking)
@@ -368,109 +368,41 @@ memblt(Rdp*, uchar* p, uchar* ep, int ctl, int fmask)
 	return p;
 }
 
-static Image*
-pickimage(int cid, int coff, Rectangle r, ulong chan)
+int
+getimgcache2(Imgupd* iu, uchar* a, uint nb, int xorder, int opt)
 {
-	Image* img;
-
-	if(cid >= nelem(imgcache) || coff >= nelem(*imgcache)){
-		werrstr("bad image cache spec [%d %d]", cid, coff);
-		return nil;
-	}
-
-	img = imgcache[cid][coff];
-	if(img==nil || !eqrect(img->r, r)){
-		if(img != nil)
-			freeimage(img);
-		img = allocimage(display, r, chan, 0, DNofill);
-		if(img == nil)
-			return nil;
-		imgcache[cid][coff] = img;
-	}
-	return img;
-}
-
-/* 2.2.2.2.1.2.2 Cache Bitmap - Revision 1 (CACHE_BITMAP_ORDER) */
-static uchar*
-cacheimage(Rdp* c, uchar* p, uchar* ep, int xorder, int opt)
-{
+	uchar *p, *ep;
 	int cid;	/* cacheId */
 	int coff;	/* cacheIndex */
-	int chan;
-	int zip;
-	int err;
-	int size;
-	Image* img;
-	Point d;	/* width, height */
-	Rectangle r;
-
-	if(p+15 >= ep)
-		sysfatal("cacheimage: %s", Eshort);
-	cid = p[6];
-	d.x = p[8];
-	d.y = p[9];
-	size = GSHORT(p+11);
-	coff = GSHORT(p+13);
-	r.min = ZP;
-	r.max = d;
-	chan = c->chan;
-	zip = (xorder==CacheCompressed);
-
-	if(zip)
-	if(opt&1<<10){
-		p += 8;	// bitmapComprHdr
-		size -= 8;
-	}
-	if(p+size > ep)
-		sysfatal("cacheimage: size: %s", Eshort);
-	if((img = pickimage(cid, coff, r, chan)) == nil)
-		sysfatal("cacheimage: pickimage: %r");
-	err = (zip? loadrle : loadbmp)(img, r, p, size, c->cmap);
-	if(err < 0)
-		sysfatal("%r");
-	return p+size;
-}
-
-/* 2.2.2.2.1.2.3 Cache Bitmap - Revision 2 (CACHE_BITMAP_REV2_ORDER) */
-static uchar*
-cacheimage2(Rdp* c, uchar* p,uchar* ep, int xorder, int opt)
-{
 	int n, g;
-	int zip;
-	int cid;	/* cacheId */
-	int coff;	/* cacheIndex */
-	int chan;
 	int size;
-	int err;
-	Image* img;
-	Point d;
-	Rectangle r;
 
-	if(p+9 >= ep)
-		sysfatal("cacheimage2: %s", Eshort);
-	p += 6;
+	p = a;
+	ep = a+nb;
 
-	chan = c->chan;
-	zip = (xorder==CacheCompressed2);
+	iu->iscompr = (xorder==CacheCompressed2);
+
 	cid = opt&Bits3;
 	opt >>= 7;
 
+	if(p+9 >= ep)
+		sysfatal("cacheimage2: %s", Eshort);
+
+	p += 6;
 	if(opt&1<<1)
 		p += 8;	// persistent cache key
 	g = *p++;
 	if(g&1<<7)
 		g = ((g&Bits7)<<8) | *p++;
-	d.x = g;
+	iu->xsz = g;
 	if(opt&1)
-		d.y = d.x;
+		iu->ysz = g;
 	else{
 		g = *p++;
 		if(g&1<<7)
 			g = ((g&Bits7)<<8) | *p++;
-		d.y = g;
+		iu->ysz = g;
 	}
-	r.min = ZP;
-	r.max = d;
 
 	g = *p++;
 	n = g>>6;
@@ -488,17 +420,33 @@ cacheimage2(Rdp* c, uchar* p,uchar* ep, int xorder, int opt)
 		g = ((g&Bits7)<<8) | *p++;
 	coff = g;
 
-	if(zip&& !(opt&1<<3)){
+
+	if(iu->iscompr && !(opt&1<<3)){
 		p += 8;	// bitmapComprHdr
 		size -= 8;
 	}
 	if(p+size > ep)
 		sysfatal("cacheimage2: size: %s", Eshort);
-	if((img = pickimage(cid, coff, r, chan)) == nil)
-		sysfatal("cacheimage2: pickimage: %r");
-	err = (zip? loadrle : loadbmp)(img, r, p, size, c->cmap);
-	if(err < 0)
-		sysfatal("%r");
+	iu->cid = cid;
+	iu->coff = coff;
+	iu->nbytes = size;
+	iu->bytes = p;
+
+	return size;
+}
+
+/* 2.2.2.2.1.2.3 Cache Bitmap - Revision 2 (CACHE_BITMAP_REV2_ORDER) */
+static uchar*
+cacheimage2(Rdp* c, uchar* p, uchar* ep, int xorder, int opt)
+{
+	int size;
+	Imgupd iupd, *iu;
+
+	iu = &iupd;
+
+	size = getimgcache2(iu, p, ep-p, xorder, opt);
+	loadmemimg(c, iu);
+
 	return p+size;
 }
 

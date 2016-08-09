@@ -210,6 +210,18 @@ main(int argc, char *argv[])
 }
 
 void
+readnet(Rdp* c)
+{
+	Msg r;
+
+	for(;;){
+		if(readmsg(c, &r) <= 0)
+			break;
+		apply(c, &r);
+	}
+}
+
+void
 readkbd(Rdp* c)
 {
 	char buf[256], k[10];

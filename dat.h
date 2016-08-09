@@ -188,9 +188,7 @@ int	sizelicensemsg(Msg*);
 Msgget	getlicensemsg;
 Msgput	putlicensemsg;
 void 	respondlicense(Rdp*,Msg*);
-
-void	scanvc(Rdp*, Msg*);
-void	scanupdates(Rdp*, Msg*);
+void	apply(Rdp* c, Msg* m);
 
 enum /* Share.type */
 {

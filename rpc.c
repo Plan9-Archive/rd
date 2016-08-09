@@ -4,9 +4,17 @@
 #include "dat.h"
 #include "fns.h"
 
-int	mcsconnect(Rdp*);
-int	attachuser(Rdp*);
-int	joinchannel(Rdp*,int,int);
+static void	applyvc(Rdp*, Msg*);
+static void	applyupdates(Rdp*, Msg*);
+
+extern
+	int	mcsconnect(Rdp*);
+	int	attachuser(Rdp*);
+	int	joinchannel(Rdp*,int,int);
+
+	int	defragvc(Rdp*,Msg*);
+	void	callvcfunc(Rdp*,Msg*);
+
 
 int
 x224handshake(Rdp* c)
@@ -388,34 +396,25 @@ turnupdates(Rdp* c, int allow)
 }
 
 void
-readnet(Rdp* c)
+apply(Rdp* c, Msg* m)
 {
-	Msg r;
-
-	for(;;){
-		if(readmsg(c, &r) <= 0)
-			return;
-
-		switch(r.type){
-		case Mclosing:
-			return;
-		case Mvchan:
-			scanvc(c, &r);
-			break;
-		case Aupdate:
-			scanupdates(c, &r);
-			break;
-		case 0:
-			fprint(2, "unsupported PDU\n");
-			break;
-		default:
-			fprint(2, "r.type %d is not expected\n", r.type);
-		}
+	switch(m->type){
+	default:	fprint(2, "type %d is not expected\n", m->type); break;
+	case 0:	fprint(2, "unsupported PDU\n"); break;
+	case Mvchan:	applyvc(c, m); break;
+	case Aupdate:	applyupdates(c, m); break;
 	}
 }
 
-void
-scanupdates(Rdp* c, Msg* m)
+static void
+applyvc(Rdp* c, Msg* m)
+{
+	if(defragvc(c, m) > 0)
+		callvcfunc(c, m);
+}
+
+static void
+applyupdates(Rdp* c, Msg* m)
 {
 	int n;
 	uchar *p, *ep;
@@ -427,12 +426,12 @@ scanupdates(Rdp* c, Msg* m)
 	for(; p < ep; p += n){
 		n = m->getshare(&u, p, ep-p);
 		if(n < 0)
-			sysfatal("scanupdates: %r");
+			sysfatal("applyupdates: %r");
 
 		switch(u.type){
 		default:
 			if(u.type != 0)
-				fprint(2, "scanupdates: unhandled %d\n", u.type);
+				fprint(2, "applyupdates: unhandled %d\n", u.type);
 			break;
 		case ShDeactivate:
 			deactivate(c, &u);

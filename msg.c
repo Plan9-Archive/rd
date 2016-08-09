@@ -434,6 +434,8 @@ readmsg(Rdp* c, Msg* m)
 	if((n = readpdu(fd, buf, nb)) < 0 || getmsg(m, buf, n) <= 0)
 		return -1;
 
+	if(m->type == Mclosing)
+		return 0;
 	return n;
 }
 

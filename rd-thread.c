@@ -212,3 +212,15 @@ snarfthread(void* v)
 	pollsnarf(c);
 	threadexits("snarf eof");
 }
+
+void
+readnet(Rdp* c)
+{
+	Msg r;
+
+	for(;;){
+		if(readmsg(c, &r) <= 0)
+			break;
+		apply(c, &r);
+	}
+}

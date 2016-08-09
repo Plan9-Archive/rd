@@ -61,7 +61,7 @@ namevc(char* name)
 	return nil;
 }
 
-static int
+int
 defragvc(Rdp*, Msg* m)
 {
 	Vchan* vc;
@@ -92,7 +92,7 @@ defragvc(Rdp*, Msg* m)
 	return 0;
 }
 
-static void
+void
 callvcfunc(Rdp *c, Msg* m)
 {
 	Vchan* vc;
@@ -100,13 +100,6 @@ callvcfunc(Rdp *c, Msg* m)
 	if(vc == nil)
 		return;
 	vc->fn(c, m->data, m->ndata);
-}
-
-void
-scanvc(Rdp* c, Msg* m)
-{
-	if(defragvc(c, m) > 0)
-		callvcfunc(c, m);
 }
 
 int

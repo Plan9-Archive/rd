@@ -437,7 +437,7 @@ scanupdates(Rdp* c, Msg* m)
 		case ShDeactivate:
 			deactivate(c, &u);
 			break;
-		case ShActivate:	// server may engage capability re-exchange
+		case ShActivate:	// server may initiate capability re-exchange
 			activate(c, &u);
 			break;
 		case ShEinfo:

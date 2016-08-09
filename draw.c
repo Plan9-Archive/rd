@@ -17,7 +17,7 @@ drawimgupdate(Rdp *c, Share* s)
 	int (*loadfn)(Image*,Rectangle,uchar*,int,uchar*);
 	uchar* p, *ep;
 	int n, nr;
-	Rectangle r;
+	Rectangle r, rs;
 	Imgupd u;
 	static Image* pad;
 
@@ -28,9 +28,11 @@ drawimgupdate(Rdp *c, Share* s)
 
 	if(display->locking)
 		lockdisplay(display);
-	if(pad==nil || eqrect(pad->r, screen->r) == 0){
+
+	rs = rectaddpt(Rpt(ZP, Pt(c->xsz+4, c->ysz+4)), screen->r.min);
+	if(pad==nil || eqrect(pad->r, rs) == 0){
 		freeimage(pad);
-		pad = allocimage(display, screen->r, c->chan, 0, DNofill);
+		pad = allocimage(display, rs, c->chan, 0, DNofill);
 		if(pad==nil)
 			sysfatal("drawimgupdate: %r");
 	}
@@ -44,17 +46,17 @@ drawimgupdate(Rdp *c, Share* s)
 		if(u.iscompr)
 			loadfn = loadrle;
 
-		r = Rect(u.x, u.y, u.xm+1, u.ym+1);
-		r = rectaddpt(r, screen->r.min);
-
+		r = rectaddpt(Rect(u.x, u.y, u.x+u.xsz, u.y+u.ysz), screen->r.min);
 		if(loadfn(pad, r, u.bytes, u.nbytes, c->cmap) < 0)
-			sysfatal("%r");
+			sysfatal("drawimgupdate: %r");
+
+		r = rectaddpt(Rect(u.x, u.y, u.xm+1, u.ym+1), screen->r.min);
 		draw(screen, r, pad, nil, r.min);
 		p += n;
 		nr--;
 	}
-	if(p != ep)
-		fprint(2, "drawimgupdate: out of sync\n");
+//	if(p != ep)
+//		fprint(2, "drawimgupdate: out of sync: %d bytes left\n", (int)(ep-p));
 	flushimage(display, 1);
 	if(display->locking)
 		unlockdisplay(display);
@@ -97,7 +99,7 @@ loadmemimg(Rdp* c, Imgupd* iu)
 	}
 
 	if(loadfn(img, r, iu->bytes, iu->nbytes, c->cmap) < 0)
-		sysfatal("%r");
+		sysfatal("loadmemimg: %r");
 }
 
 void

@@ -94,7 +94,7 @@ initscreen(Rdp* c)
 	unlockdisplay(display);
 
 	c->ysz = Dy(screen->r);
-	c->xsz = (Dx(screen->r) +3) & ~3;
+	c->xsz = Dx(screen->r);
 }
 
 static int killpid[32];

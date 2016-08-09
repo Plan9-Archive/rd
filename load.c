@@ -22,6 +22,18 @@ loadbmp(Image *i, Rectangle r, uchar *data, int ndata, uchar *cmap)
 		for(a = data; a <data+ndata; a++)
 			*a = cmap[*a];
 
+	/* BUG: padding ignored
+
+	2.2.9.1.1.3.1.2.2 Bitmap Data (TS_BITMAP_DATA):
+
+		❝Uncompressed bitmap data is formatted as a bottom-up,
+		left-to-right series of pixels.  Each pixel is a whole
+		number of bytes.  Each row contains a multiple of four
+		bytes (including up to three bytes of padding, as
+		necessary).❞
+
+	*/
+
 	n = bpl;
 	while(r.max.y > r.min.y){
 		a = bufimage(i->display, 21+n);

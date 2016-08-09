@@ -228,7 +228,7 @@ void	deactivate(Rdp*,Share*);
 void	finalhandshake(Rdp*);
 void	drawimgupdate(Rdp*,Share*);
 void	loadcmap(Rdp*,Share*);
-void	scanorders(Rdp*,Share*);
+void	draworders(Rdp*,Share*);
 
 enum /* Imgupd.type */
 {
@@ -259,10 +259,7 @@ struct Imgupd
 	uchar*	bytes;
 };
 int	getimgupd(Imgupd*, uchar*, uint);
-int	getscrblt(Imgupd*,uchar*,uint,int,int);
-int	getmemblt(Imgupd*,uchar*,uint,int,int);
-int	getimgcache2(Imgupd*,uchar*,uint,int,int);
-int	getcmapcache(Imgupd*,uchar*,uint,int,int);
+int	getfupd(Imgupd*, uchar*, uint);
 
 void	loadmemimg(Rdp*, Imgupd*);
 void	drawmemimg(Rdp*, Imgupd*);

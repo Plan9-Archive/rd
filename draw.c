@@ -8,18 +8,19 @@
 #include "dat.h"
 #include "fns.h"
 
+static Image*	pad;
 static Image*	icache[3][600];
+
+static	void	drawupd(Rdp*,Imgupd*);
 
 /* 2.2.9.1.1.3.1.2.1 Bitmap Update Data (TS_UPDATE_BITMAP_DATA) */
 void
 drawimgupdate(Rdp *c, Share* s)
 {
-	int (*loadfn)(Image*,Rectangle,uchar*,int,uchar*);
 	uchar* p, *ep;
 	int n, nr;
-	Rectangle r, rs;
+	Rectangle rs;
 	Imgupd u;
-	static Image* pad;
 
 	assert(s->type == ShUimg);
 	p = s->data;
@@ -39,24 +40,35 @@ drawimgupdate(Rdp *c, Share* s)
 	while(p<ep && nr>0){
 		if((n = getimgupd(&u, p, ep-p)) < 0)
 			sysfatal("getimgupd: %r");
-		if(u.depth != pad->depth)
-			sysfatal("bad image depth");
-
-		loadfn = loadbmp;
-		if(u.iscompr)
-			loadfn = loadrle;
-
-		r = rectaddpt(Rect(u.x, u.y, u.x+u.xsz, u.y+u.ysz), screen->r.min);
-		if(loadfn(pad, r, u.bytes, u.nbytes, c->cmap) < 0)
-			sysfatal("drawimgupdate: %r");
-
-		r = rectaddpt(Rect(u.x, u.y, u.xm+1, u.ym+1), screen->r.min);
-		draw(screen, r, pad, nil, r.min);
+		drawupd(c, &u);
 		p += n;
 		nr--;
 	}
-//	if(p != ep)
-//		fprint(2, "drawimgupdate: out of sync: %d bytes left\n", (int)(ep-p));
+	flushimage(display, 1);
+	if(display->locking)
+		unlockdisplay(display);
+}
+
+/* 2.2.2.2 Fast-Path Orders Update (TS_FP_UPDATE_ORDERS) */
+void
+draworders(Rdp* c, Share* as)
+{
+	int n, count;
+	uchar *p, *ep;
+	Imgupd u;
+
+	count = as->nord;
+	p = as->data;
+	ep = as->data + as->ndata;
+
+	while(count> 0 && p<ep){
+		n = getfupd(&u, p, ep-p);
+		drawupd(c, &u);
+		p += n;
+		count--;
+	}
+	if(display->locking)
+		lockdisplay(display);
 	flushimage(display, 1);
 	if(display->locking)
 		unlockdisplay(display);
@@ -125,4 +137,76 @@ drawmemimg(Rdp*, Imgupd* iu)
 	r = rectaddpt(r, screen->r.min);
 	pt = Pt(iu->sx, iu->sy);
 	draw(screen, r, img, nil, pt);
+}
+
+
+static void
+imgupd(Rdp* c, Imgupd* up)
+{
+	Rectangle r;
+	int (*loadfn)(Image*,Rectangle,uchar*,int,uchar*);
+
+	if(up->depth != pad->depth)
+		sysfatal("bad image depth");
+
+	loadfn = loadbmp;
+	if(up->iscompr)
+		loadfn = loadrle;
+
+	r = rectaddpt(Rect(up->x, up->y, up->x+up->xsz, up->y+up->ysz), screen->r.min);
+	if(loadfn(pad, r, up->bytes, up->nbytes, c->cmap) < 0)
+		sysfatal("drawimgupdate: %r");
+
+	r = rectaddpt(Rect(up->x, up->y, up->xm+1, up->ym+1), screen->r.min);
+	draw(screen, r, pad, nil, r.min);
+}
+
+static void
+scrblt(Rdp*, Imgupd* up)
+{
+	Rectangle r, sr;
+
+	r = rectaddpt(Rect(up->x, up->y, up->x+up->xsz, up->y+up->ysz), screen->r.min);
+	sr = rectaddpt(Rpt(Pt(up->sx, up->sy), Pt(Dx(r), Dy(r))), screen->r.min);
+	scroll(display, r, sr);
+}
+
+static void
+memblt(Rdp* c, Imgupd* up)
+{
+	if(display->locking)
+		lockdisplay(display);
+	if(up->clipped)
+		replclipr(screen, screen->repl, rectaddpt(up->clipr, screen->r.min));
+	drawmemimg(c, up);
+	if(up->clipped)
+		replclipr(screen, screen->repl, screen->r);
+	if(display->locking)
+		unlockdisplay(display);
+}
+
+
+static void
+cacheimage2(Rdp* c, Imgupd* up)
+{
+	loadmemimg(c, up);
+}
+
+
+static void
+cachecmap(Rdp*, Imgupd*)
+{
+	/* BUG: who cares? */
+}
+
+static void
+drawupd(Rdp* c, Imgupd* up)
+{
+	switch(up->type){
+	case Ubitmap:	imgupd(c, up); break;
+	case Uscrblt:	scrblt(c, up); break;
+	case Umemblt:	memblt(c, up); break;
+	case Uicache:	cacheimage2(c, up); break;
+	case Umcache:	cachecmap(c, up); break;
+	}
 }

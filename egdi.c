@@ -83,31 +83,27 @@ enum
 	CacheCompressed3,
 };
 
+static int	getscrblt(Imgupd*, uchar*, uint, int, int);
+static int	getmemblt(Imgupd*, uchar*, uint, int, int);
+static int	getimgcache2(Imgupd*, uchar*, uint, int, int);
+static int	getcmapcache(Imgupd*, uchar*, uint, int, int);
+
 typedef	struct	Order Order;
 struct Order
 {
 	int	fsize;
-	void (*fn)(Rdp*,Imgupd*);
 	int (*get)(Imgupd*,uchar*,uint,int,int);
 };
 
-static	void	drawupd(Rdp*,Imgupd*);
-
-
-static	void	scrblt(Rdp*,Imgupd*);
-static	void	memblt(Rdp*,Imgupd*);
-static	void	cacheimage2(Rdp*,Imgupd*);
-static	void	cachecmap(Rdp*,Imgupd*);
-
 Order ordtab[NumOrders] = {
-	[ScrBlt]= 		{ 1, drawupd,	getscrblt },
-	[MemBlt]=	{ 2, drawupd,	getmemblt },
+	[ScrBlt]= 		{ 1, getscrblt },
+	[MemBlt]=	{ 2, getmemblt },
 };
 
 Order auxtab[8] = {
-	[CacheImage2]=		{ 0, drawupd, getimgcache2  },
-	[CacheCompressed2]= 	{ 0, drawupd, getimgcache2 },
-	[CacheCmap]=			{ 0, drawupd, getcmapcache },
+	[CacheImage2]=		{ 0, getimgcache2  },
+	[CacheCompressed2]= 	{ 0, getimgcache2 },
+	[CacheCmap]=			{ 0, getcmapcache },
 };
 
 uchar
@@ -126,8 +122,8 @@ static struct GdiContext
 static	int	cfclipr(Rectangle*,uchar*,int);
 static	int	cfpt(Point*,uchar*,int,int,int);
 
-int	getfupd(Imgupd*, uchar*, uint);
-int	getfupd(Imgupd* up, uchar* a, uint nb)
+int
+getfupd(Imgupd* up, uchar* a, uint nb)
 {
 	uchar *p, *ep;
 	int ctl, fset, fsize;
@@ -142,10 +138,10 @@ int	getfupd(Imgupd* up, uchar* a, uint nb)
 		goto ErrNstd;
 	if(ctl&Secondary){
 		if(p+6>ep)
-			sysfatal("scanorders: %s", Eshort);
+			sysfatal("draworders: %s", Eshort);
 		size = ((short)GSHORT(p+1))+13;
 		if(size < 0 || p+size > ep)
-			sysfatal("scanorders: size: %s", Eshort);
+			sysfatal("draworders: size: %s", Eshort);
 		opt = GSHORT(p+3);
 		xorder = p[5];
 		if(xorder >= nelem(auxtab) || auxtab[xorder].get == nil){
@@ -198,30 +194,6 @@ ErrFsize:
 ErrNotsup:
 	fprint(2, "egdi: unsupported order %d\n", gc.order);
 	return p-a;
-}
-
-/* 2.2.2.2 Fast-Path Orders Update (TS_FP_UPDATE_ORDERS) */
-void
-scanorders(Rdp* c, Share* as)
-{
-	int n, count;
-	uchar *p, *ep;
-	Imgupd u;
-
-	count = as->nord;
-	p = as->data;
-	ep = as->data + as->ndata;
-
-	while(count-- > 0 && p<ep){
-		n = getfupd(&u, p, ep-p);
-		drawupd(c, &u);
-		p += n;
-	}
-	if(display->locking)
-		lockdisplay(display);
-	flushimage(display, 1);
-	if(display->locking)
-		unlockdisplay(display);
 }
 
 static int
@@ -311,7 +283,7 @@ cfclipr(Rectangle* pr, uchar* a, int nb)
 }
 
 /* 2.2.2.2.1.1.2.7 ScrBlt (SCRBLT_ORDER) */
-int
+static int
 getscrblt(Imgupd* up, uchar* a, uint nb, int ctl, int fset)
 {
 	int n;
@@ -353,7 +325,7 @@ DBG	fprint(2, "getscrblt...");
 	return p-a;
 }
 
-int
+static int
 getmemblt(Imgupd* up, uchar* a, uint nb, int ctl, int fset)
 {
 	static int cid;	/* cacheId */
@@ -408,7 +380,7 @@ DBG	fprint(2, "getmemblt...");
 }
 
 /* 2.2.2.2.1.2.3 Cache Bitmap - Revision 2 (CACHE_BITMAP_REV2_ORDER) */
-int
+static int
 getimgcache2(Imgupd* up, uchar* a, uint nb, int xorder, int opt)
 {
 	uchar *p, *ep;
@@ -477,7 +449,7 @@ DBG	fprint(2, "getimgcache2...");
 }
 
 /* 2.2.2.2.1.2.4 Cache Color Table (CACHE_COLOR_TABLE_ORDER) */
-int
+static int
 getcmapcache(Imgupd* up, uchar* a, uint nb, int, int)
 {
 	int cid, n;
@@ -496,56 +468,3 @@ DBG	fprint(2, "getcmapcache...");
 	return 9+4*256;
 }
 
-static void
-drawupd(Rdp* c,Imgupd* up)
-{
-	switch(up->type){
-	case Uscrblt:	scrblt(c, up); break;
-	case Umemblt:	memblt(c, up); break;
-	case Uicache:	cacheimage2(c, up); break;
-	case Umcache:	cachecmap(c, up); break;
-	}
-}
-
-
-static void
-scrblt(Rdp*, Imgupd* up)
-{
-	Rectangle r, sr;
-
-DBG	fprint(2, "scrblt...");
-	r = rectaddpt(Rect(up->x, up->y, up->x+up->xsz, up->y+up->ysz), screen->r.min);
-	sr = rectaddpt(Rpt(Pt(up->sx, up->sy), Pt(Dx(r), Dy(r))), screen->r.min);
-	scroll(display, r, sr);
-}
-
-static void
-memblt(Rdp* c, Imgupd* up)
-{
-DBG	fprint(2, "memblt...");
-	if(display->locking)
-		lockdisplay(display);
-	if(up->clipped)
-		replclipr(screen, screen->repl, rectaddpt(up->clipr, screen->r.min));
-	drawmemimg(c, up);
-	if(up->clipped)
-		replclipr(screen, screen->repl, screen->r);
-	if(display->locking)
-		unlockdisplay(display);
-}
-
-
-static void
-cacheimage2(Rdp* c, Imgupd* up)
-{
-DBG	fprint(2, "cacheimage2...");
-	loadmemimg(c, up);
-}
-
-
-static void
-cachecmap(Rdp*, Imgupd*)
-{
-DBG	fprint(2, "cachecmap...");
-	/* BUG: who cares? */
-}

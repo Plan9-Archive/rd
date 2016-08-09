@@ -227,7 +227,6 @@ void	deactivate(Rdp*,Share*);
 void	finalhandshake(Rdp*);
 void	drawimgupdate(Rdp*,Share*);
 void	loadcmap(Rdp*,Share*);
-void	draworders(Rdp*,Share*);
 
 enum /* Imgupd.type */
 {
@@ -259,9 +258,6 @@ struct Imgupd
 };
 int	getimgupd(Imgupd*, uchar*, uint);
 int	getfupd(Imgupd*, uchar*, uint);
-
-void	drawmemimg(Rdp*, Imgupd*);
-
 
 enum 
 {

@@ -7,56 +7,37 @@
 static Image*	pad;
 static Image*	icache[3][600];
 
-static	void	drawupd(Rdp*,Imgupd*);
 static	void	padresize(Rdp*);
 
-/* 2.2.9.1.1.3.1.2.1 Bitmap Update Data (TS_UPDATE_BITMAP_DATA) */
+static	void	drawupd1(Rdp*,Imgupd*);
+
+
 void
 drawimgupdate(Rdp *c, Share* s)
 {
+	int (*getupd)(Imgupd*, uchar*, uint);
 	uchar* p, *ep;
 	int n, nr;
 	Imgupd u;
+	
+	switch(s->type){
+	default:	sysfatal("drawimgupdate: bad s->type");
+	case ShUimg:	getupd = getimgupd; break;
+	case ShUorders:	getupd = getfupd; break;
+	}
 
-	assert(s->type == ShUimg);
 	p = s->data;
 	ep = s->data + s->ndata;
 	nr = s->nr;
 
 	if(display->locking)
 		lockdisplay(display);
-
 	while(p<ep && nr>0){
-		if((n = getimgupd(&u, p, ep-p)) < 0)
+		if((n = getupd(&u, p, ep-p)) < 0)
 			sysfatal("getimgupd: %r");
-		drawupd(c, &u);
+		drawupd1(c, &u);
 		p += n;
 		nr--;
-	}
-	flushimage(display, 1);
-	if(display->locking)
-		unlockdisplay(display);
-}
-
-/* 2.2.2.2 Fast-Path Orders Update (TS_FP_UPDATE_ORDERS) */
-void
-draworders(Rdp* c, Share* as)
-{
-	int n, count;
-	uchar *p, *ep;
-	Imgupd u;
-
-	count = as->nr;
-	p = as->data;
-	ep = as->data + as->ndata;
-
-	if(display->locking)
-		lockdisplay(display);
-	while(count> 0 && p<ep){
-		n = getfupd(&u, p, ep-p);
-		drawupd(c, &u);
-		p += n;
-		count--;
 	}
 	flushimage(display, 1);
 	if(display->locking)
@@ -100,32 +81,6 @@ imgupd(Rdp* c, Imgupd* up)
 	draw(screen, r, pad, nil, r.min);
 }
 
-void
-drawmemimg(Rdp*, Imgupd* iu)
-{
-	Image* img;
-	Rectangle r;
-	Point pt;
-
-	/* called with display locked */
-
-	if(iu->cid >= nelem(icache) || iu->coff >= nelem(*icache)){
-		fprint(2, "drawmemimg: bad cache spec [%d %d]\n", iu->cid, iu->coff);
-		return;
-	}
-	img = icache[iu->cid][iu->coff];
-	if(img == nil){
-		fprint(2, "drawmemimg: empty cache entry cid %d coff %d\n", iu->cid, iu->coff);
-		return;
-	}
-
-	r = Rect(iu->x, iu->y, iu->xm+1, iu->ym+1);
-	r = rectaddpt(r, screen->r.min);
-	pt = Pt(iu->sx, iu->sy);
-	draw(screen, r, img, nil, pt);
-}
-
-
 static void
 scrblt(Rdp*, Imgupd* up)
 {
@@ -138,11 +93,30 @@ scrblt(Rdp*, Imgupd* up)
 }
 
 static void
-memblt(Rdp* c, Imgupd* up)
+memblt(Rdp*, Imgupd* up)
 {
+	Image* img;
+	Rectangle r;
+	Point pt;
+
+	if(up->cid >= nelem(icache) || up->coff >= nelem(*icache)){
+		fprint(2, "drawmemimg: bad cache spec [%d %d]\n", up->cid, up->coff);
+		return;
+	}
+	img = icache[up->cid][up->coff];
+	if(img == nil){
+		fprint(2, "drawmemimg: empty cache entry cid %d coff %d\n", up->cid, up->coff);
+		return;
+	}
+
 	if(up->clipped)
 		replclipr(screen, screen->repl, rectaddpt(up->clipr, screen->r.min));
-	drawmemimg(c, up);
+
+	r = Rect(up->x, up->y, up->xm+1, up->ym+1);
+	r = rectaddpt(r, screen->r.min);
+	pt = Pt(up->sx, up->sy);
+	draw(screen, r, img, nil, pt);
+
 	if(up->clipped)
 		replclipr(screen, screen->repl, screen->r);
 }
@@ -183,7 +157,7 @@ cachecmap(Rdp*, Imgupd*)
 }
 
 static void
-drawupd(Rdp* c, Imgupd* up)
+drawupd1(Rdp* c, Imgupd* up)
 {
 	switch(up->type){
 	case Ubitmap:	imgupd(c, up); break;

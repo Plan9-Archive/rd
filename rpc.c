@@ -444,8 +444,6 @@ scanupdates(Rdp* c, Msg* m)
 			c->hupreason = u.err;
 			break;
 		case ShUorders:
-			draworders(c, &u);
-			break;
 		case ShUimg:
 			drawimgupdate(c, &u);
 			break;

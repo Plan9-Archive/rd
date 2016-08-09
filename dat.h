@@ -252,7 +252,10 @@ struct Imgupd
 	int	sx;
 	int	sy;
 	int	clipped;
-	Rectangle	clipr;
+	int	cx;
+	int	cy;
+	int	cxsz;
+	int	cysz;
 	int	nbytes;
 	uchar*	bytes;
 };

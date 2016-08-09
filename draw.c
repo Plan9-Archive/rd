@@ -96,7 +96,7 @@ static void
 memblt(Rdp*, Imgupd* up)
 {
 	Image* img;
-	Rectangle r;
+	Rectangle clipr, r;
 	Point pt;
 
 	if(up->cid >= nelem(icache) || up->coff >= nelem(*icache)){
@@ -109,8 +109,10 @@ memblt(Rdp*, Imgupd* up)
 		return;
 	}
 
-	if(up->clipped)
-		replclipr(screen, screen->repl, rectaddpt(up->clipr, screen->r.min));
+	if(up->clipped){
+		clipr = Rect(up->cx, up->cy, up->cx+up->cxsz, up->cy+up->cysz);
+		replclipr(screen, screen->repl, rectaddpt(clipr, screen->r.min));
+	}
 
 	r = Rect(up->x, up->y, up->xm+1, up->ym+1);
 	r = rectaddpt(r, screen->r.min);

@@ -373,7 +373,10 @@ DBG	fprint(2, "getmemblt...");
 	up->clipped = 0;
 	if(ctl&Clipped){
 		up->clipped = 1;
-		up->clipr = gc.clipr;
+		up->cx = gc.clipr.min.x;
+		up->cy = gc.clipr.min.y;
+		up->cxsz = Dx(gc.clipr);
+		up->cysz = Dy(gc.clipr);
 	}
 
 	return p-a;

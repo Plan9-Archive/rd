@@ -11,6 +11,9 @@ static	void	padresize(Rdp*);
 
 static	void	drawupd1(Rdp*,Imgupd*);
 
+extern	/* load.c */
+	int	loadbmp(Image*,Rectangle,uchar*,int,uchar*);
+	int	loadrle(Image*,Rectangle,uchar*,int,uchar*);
 
 void
 drawimgupdate(Rdp *c, Share* s)

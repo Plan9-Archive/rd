@@ -6,7 +6,6 @@
 */
 #include <u.h>
 #include <libc.h>
-#include <draw.h>
 #include "dat.h"
 #include "fns.h"
 
@@ -14,6 +13,11 @@ enum
 {
 	Bits4=	15,
 	Bits5=	31,
+};
+
+enum
+{
+	DWhite		= 0xFFFFFFFF,
 };
 
 enum

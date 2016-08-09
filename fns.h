@@ -1,6 +1,3 @@
-/* load.c */
-int		loadbmp(Image*,Rectangle,uchar*,int,uchar*);
-int		loadrle(Image*,Rectangle,uchar*,int,uchar*);
 
 /* mcs.c */
 int		mcschan(uchar*,uchar*);

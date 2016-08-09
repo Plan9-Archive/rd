@@ -91,20 +91,23 @@ struct Order
 	int (*get)(Imgupd*,uchar*,uint,int,int);
 };
 
+static	void	drawupd(Rdp*,Imgupd*);
+
+
 static	void	scrblt(Rdp*,Imgupd*);
 static	void	memblt(Rdp*,Imgupd*);
 static	void	cacheimage2(Rdp*,Imgupd*);
 static	void	cachecmap(Rdp*,Imgupd*);
 
 Order ordtab[NumOrders] = {
-	[ScrBlt]= 		{ 1, scrblt,	getscrblt },
-	[MemBlt]=	{ 2, memblt,	getmemblt },
+	[ScrBlt]= 		{ 1, drawupd,	getscrblt },
+	[MemBlt]=	{ 2, drawupd,	getmemblt },
 };
 
 Order auxtab[8] = {
-	[CacheImage2]=		{ 0, cacheimage2, getimgcache2  },
-	[CacheCompressed2]= 	{ 0, cacheimage2, getimgcache2 },
-	[CacheCmap]=			{ 0, cachecmap, getcmapcache },
+	[CacheImage2]=		{ 0, drawupd, getimgcache2  },
+	[CacheCompressed2]= 	{ 0, drawupd, getimgcache2 },
+	[CacheCmap]=			{ 0, drawupd, getcmapcache },
 };
 
 uchar
@@ -123,14 +126,86 @@ static struct GdiContext
 static	int	cfclipr(Rectangle*,uchar*,int);
 static	int	cfpt(Point*,uchar*,int,int,int);
 
+int	getfupd(Imgupd*, uchar*, uint);
+int	getfupd(Imgupd* up, uchar* a, uint nb)
+{
+	uchar *p, *ep;
+	int ctl, fset, fsize;
+	int n, size, opt, xorder;
+
+	p = a;
+	ep = a+nb;
+
+	fset = 0;
+	ctl = *p;
+	if(!(ctl&Standard))
+		goto ErrNstd;
+	if(ctl&Secondary){
+		if(p+6>ep)
+			sysfatal("scanorders: %s", Eshort);
+		size = ((short)GSHORT(p+1))+13;
+		if(size < 0 || p+size > ep)
+			sysfatal("scanorders: size: %s", Eshort);
+		opt = GSHORT(p+3);
+		xorder = p[5];
+		if(xorder >= nelem(auxtab) || auxtab[xorder].get == nil){
+			fprint(2, "egdi: unsupported secondary order %d\n", xorder);
+			p += size;
+			return p-a;
+		}
+
+		auxtab[xorder].get(up, p, size, xorder, opt);
+		p += size;
+		return p-a;
+	}
+	p++;
+	if(ctl&NewOrder){
+		gc.order = *p++;
+		if(gc.order >= NumOrders)		// paranoia
+			gc.order = PatBlt;
+	}
+	fsize = ordtab[gc.order].fsize - ((ctl>>6)&Bits2);
+	switch(fsize){
+	default:
+		goto ErrFsize;
+	case 3:
+		fset = p[0]|(p[1]<<8)|(p[2]<<16);
+		break;
+	case 2:
+		fset = GSHORT(p);
+		break;
+	case 1:
+		fset = p[0];
+	case 0:
+		break;
+	}
+	p += fsize;
+
+	if(ctl&Clipped && !(ctl&SameClipping))
+		p += cfclipr(&gc.clipr, p, ep-p);
+
+	if(ordtab[gc.order].get == nil)
+		goto ErrNotsup;
+	n = ordtab[gc.order].get(up, p, ep-p, ctl, fset);
+	p += n;
+	return p-a;
+ErrNstd:
+	fprint(2, "egdi: non-standard order (GDI+ or out of sync)\n");
+	return p-a;
+ErrFsize:
+	fprint(2, "egdi: bad field encoding bytes count for order %d\n", gc.order);
+	return p-a;
+ErrNotsup:
+	fprint(2, "egdi: unsupported order %d\n", gc.order);
+	return p-a;
+}
+
 /* 2.2.2.2 Fast-Path Orders Update (TS_FP_UPDATE_ORDERS) */
 void
 scanorders(Rdp* c, Share* as)
 {
-	int count;
+	int n, count;
 	uchar *p, *ep;
-	int ctl, fset, fsize;
-	int n, size, opt, xorder;
 	Imgupd u;
 
 	count = as->nord;
@@ -138,59 +213,8 @@ scanorders(Rdp* c, Share* as)
 	ep = as->data + as->ndata;
 
 	while(count-- > 0 && p<ep){
-		fset = 0;
-		ctl = *p;
-		if(!(ctl&Standard))
-			goto ErrNstd;
-		if(ctl&Secondary){
-			if(p+6>ep)
-				sysfatal("scanorders: %s", Eshort);
-			size = ((short)GSHORT(p+1))+13;
-			if(size < 0 || p+size > ep)
-				sysfatal("scanorders: size: %s", Eshort);
-			opt = GSHORT(p+3);
-			xorder = p[5];
-			if(xorder >= nelem(auxtab) || auxtab[xorder].get == nil){
-				fprint(2, "egdi: unsupported secondary order %d\n", xorder);
-				p += size;
-				continue;
-			}
-
-			auxtab[xorder].get(&u, p, size, xorder, opt);
-			auxtab[xorder].fn(c, &u);
-			p += size;
-			continue;
-		}
-		p++;
-		if(ctl&NewOrder){
-			gc.order = *p++;
-			if(gc.order >= NumOrders)		// paranoia
-				gc.order = PatBlt;
-		}
-		fsize = ordtab[gc.order].fsize - ((ctl>>6)&Bits2);
-		switch(fsize){
-		default:
-			goto ErrFsize;
-		case 3:
-			fset = p[0]|(p[1]<<8)|(p[2]<<16);
-			break;
-		case 2:
-			fset = GSHORT(p);
-			break;
-		case 1:
-			fset = p[0];
-		case 0:
-			break;
-		}
-		p += fsize;
-
-		if(ctl&Clipped && !(ctl&SameClipping))
-			p += cfclipr(&gc.clipr, p, ep-p);
-
-		if(ordtab[gc.order].get == nil)
-			goto ErrNotsup;
-		n = ordtab[gc.order].get(&u, p, ep-p, ctl, fset);
-		ordtab[gc.order].fn(c, &u);
+		n = getfupd(&u, p, ep-p);
+		drawupd(c, &u);
 		p += n;
 	}
 	if(display->locking)
@@ -198,17 +222,6 @@ scanorders(Rdp* c, Share* as)
 	flushimage(display, 1);
 	if(display->locking)
 		unlockdisplay(display);
-	return;
-
-ErrNstd:
-	fprint(2, "egdi: non-standard order (GDI+ or out of sync)\n");
-	return;
-ErrFsize:
-	fprint(2, "egdi: bad field encoding bytes count for order %d\n", gc.order);
-	return;
-ErrNotsup:
-	fprint(2, "egdi: unsupported order %d\n", gc.order);
-	return;
 }
 
 static int
@@ -483,6 +496,16 @@ DBG	fprint(2, "getcmapcache...");
 	return 9+4*256;
 }
 
+static void
+drawupd(Rdp* c,Imgupd* up)
+{
+	switch(up->type){
+	case Uscrblt:	scrblt(c, up); break;
+	case Umemblt:	memblt(c, up); break;
+	case Uicache:	cacheimage2(c, up); break;
+	case Umcache:	cachecmap(c, up); break;
+	}
+}
 
 
 static void

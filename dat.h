@@ -212,8 +212,7 @@ struct Share
 	int	source;
 	int	shareid;
 	int	ncap;
-	int	nord;
-	int	nrect;
+	int	nr;
 	int	x;
 	int	y;
 	int	err;
@@ -261,7 +260,6 @@ struct Imgupd
 int	getimgupd(Imgupd*, uchar*, uint);
 int	getfupd(Imgupd*, uchar*, uint);
 
-void	loadmemimg(Rdp*, Imgupd*);
 void	drawmemimg(Rdp*, Imgupd*);
 
 

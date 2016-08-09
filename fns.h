@@ -53,5 +53,3 @@ uchar*	gbtag(uchar*,uchar*,int*);
 void		pbshort(uchar*,int);
 
 uchar*	putsdh(uchar*,uchar*,int,int,int,int);
-
-void		scroll(Display*, Rectangle, Rectangle);

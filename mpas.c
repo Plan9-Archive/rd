@@ -106,7 +106,7 @@ getshareF(Share* as, uchar* a, uint nbytes)
 			return -1;
 		}
 		as->type = ShUorders;
-		as->nord = GSHORT(p);
+		as->nr = GSHORT(p);
 		as->data = p+2;
 		as->ndata = ep-(p+2);
 		break;
@@ -116,7 +116,7 @@ getshareF(Share* as, uchar* a, uint nbytes)
 			return -1;
 		}
 		as->type = ShUimg;
-		as->nrect = GSHORT(p+2);
+		as->nr = GSHORT(p+2);
 		as->data = p+4;
 		as->ndata = ep-(p+4);
 		break;
@@ -259,7 +259,7 @@ getshareT(Share* as, uchar* p, uint nb)
 					return -1;
 				}
 				as->type = ShUorders;
-				as->nord = GSHORT(p+4);
+				as->nr = GSHORT(p+4);
 				as->data = p+8;
 				as->ndata = ep-(p+8);
 				break;
@@ -269,7 +269,7 @@ getshareT(Share* as, uchar* p, uint nb)
 					return -1;
 				}
 				as->type = ShUimg;
-				as->nrect = GSHORT(p+2);
+				as->nr = GSHORT(p+2);
 				as->data = p+4;
 				as->ndata = ep-(p+4);
 				break;

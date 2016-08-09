@@ -8,6 +8,8 @@
 #include "dat.h"
 #include "fns.h"
 
+#define	DBG	if(0)
+
 enum
 {
 	Bits2=	3,
@@ -32,7 +34,7 @@ enum /* 2.2.2.2.1.1.2 Primary Drawing Order (PRIMARY_DRAWING_ORDER) */
 };
 enum
 {
-	ROP2_COPY	= 0xcc,
+	Scopy	= 0xcc,
 };
 enum
 {
@@ -85,23 +87,24 @@ typedef	struct	Order Order;
 struct Order
 {
 	int	fsize;
-	uchar* (*fn)(Rdp*, uchar*,uchar*,int,int);
+	void (*fn)(Rdp*,Imgupd*);
+	int (*get)(Imgupd*,uchar*,uint,int,int);
 };
 
-static	uchar*	scrblt(Rdp*, uchar*,uchar*,int,int);
-static	uchar*	memblt(Rdp*, uchar*,uchar*,int,int);
-static	uchar*	cacheimage2(Rdp*, uchar*,uchar*,int,int);
-static	uchar*	cachecmap(Rdp*, uchar*,uchar*,int,int);
+static	void	scrblt(Rdp*,Imgupd*);
+static	void	memblt(Rdp*,Imgupd*);
+static	void	cacheimage2(Rdp*,Imgupd*);
+static	void	cachecmap(Rdp*,Imgupd*);
 
 Order ordtab[NumOrders] = {
-	[ScrBlt]= 		{ 1, scrblt },
-	[MemBlt]=	{ 2, memblt },
+	[ScrBlt]= 		{ 1, scrblt,	getscrblt },
+	[MemBlt]=	{ 2, memblt,	getmemblt },
 };
 
 Order auxtab[8] = {
-	[CacheImage2]=		{ 0, cacheimage2 },
-	[CacheCompressed2]= 	{ 0, cacheimage2 },
-	[CacheCmap]=			{ 0, cachecmap },
+	[CacheImage2]=		{ 0, cacheimage2, getimgcache2  },
+	[CacheCompressed2]= 	{ 0, cacheimage2, getimgcache2 },
+	[CacheCmap]=			{ 0, cachecmap, getcmapcache },
 };
 
 uchar
@@ -117,8 +120,8 @@ static struct GdiContext
 	Rectangle clipr;
 } gc	= {PatBlt};
 
-static	uchar*	getclipr(Rectangle*,uchar*,uchar*);
-static	uchar*	getpt(Point*,uchar*,uchar*,int,int);
+static	int	cfclipr(Rectangle*,uchar*,int);
+static	int	cfpt(Point*,uchar*,int,int,int);
 
 /* 2.2.2.2 Fast-Path Orders Update (TS_FP_UPDATE_ORDERS) */
 void
@@ -127,7 +130,8 @@ scanorders(Rdp* c, Share* as)
 	int count;
 	uchar *p, *ep;
 	int ctl, fset, fsize;
-	int size, opt, xorder;
+	int n, size, opt, xorder;
+	Imgupd u;
 
 	count = as->nord;
 	p = as->data;
@@ -137,7 +141,7 @@ scanorders(Rdp* c, Share* as)
 		fset = 0;
 		ctl = *p;
 		if(!(ctl&Standard))
-			goto ErrNstd;	// GDI+ or out of sync
+			goto ErrNstd;
 		if(ctl&Secondary){
 			if(p+6>ep)
 				sysfatal("scanorders: %s", Eshort);
@@ -146,13 +150,14 @@ scanorders(Rdp* c, Share* as)
 				sysfatal("scanorders: size: %s", Eshort);
 			opt = GSHORT(p+3);
 			xorder = p[5];
-			if(xorder >= nelem(auxtab) || auxtab[xorder].fn == nil){
+			if(xorder >= nelem(auxtab) || auxtab[xorder].get == nil){
 				fprint(2, "egdi: unsupported secondary order %d\n", xorder);
 				p += size;
 				continue;
 			}
 
-			auxtab[xorder].fn(c, p, p+size, xorder, opt);
+			auxtab[xorder].get(&u, p, size, xorder, opt);
+			auxtab[xorder].fn(c, &u);
 			p += size;
 			continue;
 		}
@@ -180,13 +185,13 @@ scanorders(Rdp* c, Share* as)
 		p += fsize;
 
 		if(ctl&Clipped && !(ctl&SameClipping))
-			p = getclipr(&gc.clipr, p, ep);
+			p += cfclipr(&gc.clipr, p, ep-p);
 
-		if(ordtab[gc.order].fn == nil)
+		if(ordtab[gc.order].get == nil)
 			goto ErrNotsup;
-		p = ordtab[gc.order].fn(c, p, ep, ctl, fset);
-		if(p == nil)
-			break;
+		n = ordtab[gc.order].get(&u, p, ep-p, ctl, fset);
+		ordtab[gc.order].fn(c, &u);
+		p += n;
 	}
 	if(display->locking)
 		lockdisplay(display);
@@ -196,7 +201,7 @@ scanorders(Rdp* c, Share* as)
 	return;
 
 ErrNstd:
-	fprint(2, "egdi: non-standard order\n");
+	fprint(2, "egdi: non-standard order (GDI+ or out of sync)\n");
 	return;
 ErrFsize:
 	fprint(2, "egdi: bad field encoding bytes count for order %d\n", gc.order);
@@ -206,10 +211,61 @@ ErrNotsup:
 	return;
 }
 
-static uchar*
-getclipr(Rectangle* pr, uchar* p, uchar* ep)
+static int
+cfpt(Point* p, uchar* a, int nb, int isdelta, int fset)
+{
+	int n;
+
+	n = 0;
+	if(isdelta){
+		if(fset&1<<0)
+			n++;
+		if(fset&1<<1)
+			n++;
+	}else{
+		if(fset&1<<0)
+			n += 2;
+		if(fset&1<<1)
+			n += 2;
+	}
+	if(n>nb)
+		sysfatal("cfpt: %s", Eshort);
+
+	if(isdelta){
+		if(fset&1<<0)
+			p->x += (signed char)*a++;
+		if(fset&1<<1)
+			p->y += (signed char)*a;
+	}else{
+		if(fset&1<<0){
+			p->x = GSHORT(a);
+			a += 2;
+		};
+		if(fset&1<<1)
+			p->y = GSHORT(a);
+	}
+	return n;
+}
+
+static int
+cfrect(Rectangle* pr, uchar* p, int nb, int isdelta, int fset){
+	int n, m;
+
+	pr->max = subpt(pr->max, pr->min);
+	n = cfpt(&pr->min, p, nb, isdelta, fset);
+	m = cfpt(&pr->max, p+n, nb-n, isdelta, fset>>2);
+	pr->max = addpt(pr->max, pr->min);
+	return n+m;
+}
+
+static int
+cfclipr(Rectangle* pr, uchar* a, int nb)
 {
 	int bctl;
+	uchar *p, *ep;
+
+	p = a;
+	ep = a+nb;
 
 	bctl = *p++;
 	if(bctl&1<<4)
@@ -237,94 +293,78 @@ getclipr(Rectangle* pr, uchar* p, uchar* ep)
 		p += 2;
 	}
 	if(p>ep)
-		sysfatal("getclipr: %s", Eshort);
-	return p;
-}
-
-static uchar*
-getpt(Point* pp, uchar* s, uchar *es,  int ctl, int fset)
-{
-	Point p;
-
-	p = *pp;
-	if(ctl&Diff){
-		if(fset&1<<0)
-			p.x += (char)*s++;
-		if(fset&1<<1)
-			p.y += (char)*s++;
-	}else{
-		if(fset&1<<0){
-			p.x = GSHORT(s);
-			s += 2;
-		};
-		if(fset&1<<1){
-			p.y = GSHORT(s);
-			s += 2;
-		};
-	}
-	if(s > es)
-		sysfatal("getpt: %s", Eshort);
-	*pp = p;
-	return s;
-}
-
-static uchar*
-getoffrect(Rectangle* pr, uchar* p, uchar* ep, int ctl, int fset){
-	Rectangle r;
-
-	r = *pr;
-	r.max = subpt(r.max, r.min);
-	p = getpt(&r.min, p, ep, ctl, fset);
-	p = getpt(&r.max, p, ep, ctl, fset>>2);
-	r.max = addpt(r.max, r.min);
-	*pr = r;
-	return p;
+		sysfatal("cfclipr: %s", Eshort);
+	return p-a;
 }
 
 /* 2.2.2.2.1.1.2.7 ScrBlt (SCRBLT_ORDER) */
-static uchar*
-scrblt(Rdp*, uchar* p, uchar* ep, int ctl, int fset)
+int
+getscrblt(Imgupd* up, uchar* a, uint nb, int ctl, int fset)
 {
+	int n;
+	uchar *p, *ep;
+	Rectangle r;
 	static	Rectangle wr;
 	static	Point wp;
 	static	int rop3;
-	Rectangle r, sr;
 
-	p = getoffrect(&wr, p, ep, ctl, fset);
-	if(fset&1<<4)
+DBG	fprint(2, "getscrblt...");
+	p = a;
+	ep = a+nb;
+
+	n = cfrect(&wr, p, ep-p, ctl&Diff, fset);
+	p += n;
+	if(fset&1<<4){
+		if(ep-p<1)
+			sysfatal(Eshort);
 		rop3 = *p++;
-	p = getpt(&wp, p, ep, ctl, fset>>5);
-	if(ctl&Clipped)
-		rectclip(&wr, gc.clipr);
-
-	if(rop3 != ROP2_COPY){
-		fprint(2, "scrblt: rop3 %#hhux is not supported\n", rop3);
-		return p;
 	}
+	n = cfpt(&wp, p, ep-p, ctl&Diff, fset>>5);
+	p += n;
 
-	r = rectaddpt(wr, screen->r.min);
-	sr = rectaddpt(Rpt(wp, Pt(Dx(r), Dy(r))), screen->r.min);
-	scroll(display, r, sr);
-	return p;
+	r = wr;
+	if(ctl&Clipped)
+		rectclip(&r, gc.clipr);
+
+	if(rop3 != Scopy)
+		fprint(2, "scrblt: rop3 %#hhux is not supported\n", rop3);
+
+	up->type = Uscrblt;
+	up->x = r.min.x;
+	up->y = r.min.y;
+	up->xsz = Dx(r);
+	up->ysz = Dy(r);
+	up->sx = wp.x;
+	up->sy = wp.y;
+
+	return p-a;
 }
 
-uchar*
-getmemblt(Imgupd* iu, uchar* p, uchar* ep, int ctl, int fset)
+int
+getmemblt(Imgupd* up, uchar* a, uint nb, int ctl, int fset)
 {
 	static int cid;	/* cacheId */
 	static int coff;	/* cacheIndex */
 	static int rop3;
 	static Rectangle r;
 	static Point pt;
+	int n;
+	uchar *p, *ep;
+DBG	fprint(2, "getmemblt...");
+
+	p = a;
+	ep = a+nb;
 
 	if(fset&1<<0){
 		cid = GSHORT(p);
 		p += 2;
 	}
-	p = getoffrect(&r, p, ep, ctl, fset>>1);
+	n = cfrect(&r, p, ep-p, ctl&Diff, fset>>1);
+	p += n;
 	if(fset&1<<5)
 		rop3 = *p++;
-	p = getpt(&pt, p, ep, ctl, fset>>6);
+	n = cfpt(&pt, p, ep-p, ctl&Diff, fset>>6);
+	p += n;
 	if(fset&1<<8){
 		coff = GSHORT(p);
 		p += 2;
@@ -334,42 +374,29 @@ getmemblt(Imgupd* iu, uchar* p, uchar* ep, int ctl, int fset)
 
 	cid &= Bits8;
 
-	iu->cid = cid;
-	iu->coff = coff;
-	iu->x = r.min.x;
-	iu->y = r.min.y;
-	iu->xm = r.max.x-1;
-	iu->ym = r.max.y-1;
-	iu->xsz = Dx(r);
-	iu->ysz = Dy(r);
-	iu->sx = pt.x;
-	iu->sy = pt.y;
-	return p;
+	up->type = Umemblt;
+	up->cid = cid;
+	up->coff = coff;
+	up->x = r.min.x;
+	up->y = r.min.y;
+	up->xm = r.max.x-1;
+	up->ym = r.max.y-1;
+	up->xsz = Dx(r);
+	up->ysz = Dy(r);
+	up->sx = pt.x;
+	up->sy = pt.y;
+	up->clipped = 0;
+	if(ctl&Clipped){
+		up->clipped = 1;
+		up->clipr = gc.clipr;
+	}
+
+	return p-a;
 }
 
-/* 2.2.2.2.1.1.2.9 MemBlt (MEMBLT_ORDER) */
-static uchar*
-memblt(Rdp* c, uchar* p, uchar* ep, int ctl, int fset)
-{
-	Imgupd u;
-
-	p = getmemblt(&u, p, ep, ctl, fset);
-
-	if(display->locking)
-		lockdisplay(display);
-	if(ctl&Clipped)
-		replclipr(screen, screen->repl, rectaddpt(gc.clipr, screen->r.min));
-	drawmemimg(c, &u);
-	if(ctl&Clipped)
-		replclipr(screen, screen->repl, screen->r);
-	if(display->locking)
-		unlockdisplay(display);
-
-	return p;
-}
-
+/* 2.2.2.2.1.2.3 Cache Bitmap - Revision 2 (CACHE_BITMAP_REV2_ORDER) */
 int
-getimgcache2(Imgupd* iu, uchar* a, uint nb, int xorder, int opt)
+getimgcache2(Imgupd* up, uchar* a, uint nb, int xorder, int opt)
 {
 	uchar *p, *ep;
 	int cid;	/* cacheId */
@@ -377,10 +404,11 @@ getimgcache2(Imgupd* iu, uchar* a, uint nb, int xorder, int opt)
 	int n, g;
 	int size;
 
+DBG	fprint(2, "getimgcache2...");
 	p = a;
 	ep = a+nb;
 
-	iu->iscompr = (xorder==CacheCompressed2);
+	up->iscompr = (xorder==CacheCompressed2);
 
 	cid = opt&Bits3;
 	opt >>= 7;
@@ -394,14 +422,14 @@ getimgcache2(Imgupd* iu, uchar* a, uint nb, int xorder, int opt)
 	g = *p++;
 	if(g&1<<7)
 		g = ((g&Bits7)<<8) | *p++;
-	iu->xsz = g;
+	up->xsz = g;
 	if(opt&1)
-		iu->ysz = g;
+		up->ysz = g;
 	else{
 		g = *p++;
 		if(g&1<<7)
 			g = ((g&Bits7)<<8) | *p++;
-		iu->ysz = g;
+		up->ysz = g;
 	}
 
 	g = *p++;
@@ -420,53 +448,81 @@ getimgcache2(Imgupd* iu, uchar* a, uint nb, int xorder, int opt)
 		g = ((g&Bits7)<<8) | *p++;
 	coff = g;
 
-
-	if(iu->iscompr && !(opt&1<<3)){
+	if(up->iscompr && !(opt&1<<3)){
 		p += 8;	// bitmapComprHdr
 		size -= 8;
 	}
 	if(p+size > ep)
 		sysfatal("cacheimage2: size: %s", Eshort);
-	iu->cid = cid;
-	iu->coff = coff;
-	iu->nbytes = size;
-	iu->bytes = p;
 
+	up->type = Uicache;
+	up->cid = cid;
+	up->coff = coff;
+	up->nbytes = size;
+	up->bytes = p;
 	return size;
 }
 
-/* 2.2.2.2.1.2.3 Cache Bitmap - Revision 2 (CACHE_BITMAP_REV2_ORDER) */
-static uchar*
-cacheimage2(Rdp* c, uchar* p, uchar* ep, int xorder, int opt)
-{
-	int size;
-	Imgupd iupd, *iu;
-
-	iu = &iupd;
-
-	size = getimgcache2(iu, p, ep-p, xorder, opt);
-	loadmemimg(c, iu);
-
-	return p+size;
-}
-
 /* 2.2.2.2.1.2.4 Cache Color Table (CACHE_COLOR_TABLE_ORDER) */
-static uchar*
-cachecmap(Rdp*, uchar* p,uchar* ep, int, int)
+int
+getcmapcache(Imgupd* up, uchar* a, uint nb, int, int)
 {
 	int cid, n;
+DBG	fprint(2, "getcmapcache...");
 	
-	cid = p[6];
-	n = GSHORT(p+7);
-	if(n != 256){
-		fprint(2, "cachecmap: %d != 256\n", n);
-		return nil;
-	}
-	if(p+9+4*256>ep){
-		werrstr(Eshort);
-		return nil;
-	}
-	/* fixed cmap here */
-	USED(cid);
-	return p+9+4*256;
+	cid = a[6];
+	n = GSHORT(a+7);
+	if(n != 256)
+		sysfatal("cachecmap: %d != 256", n);
+	if(9+4*256 > nb)
+		sysfatal(Eshort);
+	up->type = Umcache;
+	up->cid = cid;
+	up->bytes = a+9;
+	up->nbytes = 4*256;
+	return 9+4*256;
+}
+
+
+
+static void
+scrblt(Rdp*, Imgupd* up)
+{
+	Rectangle r, sr;
+
+DBG	fprint(2, "scrblt...");
+	r = rectaddpt(Rect(up->x, up->y, up->x+up->xsz, up->y+up->ysz), screen->r.min);
+	sr = rectaddpt(Rpt(Pt(up->sx, up->sy), Pt(Dx(r), Dy(r))), screen->r.min);
+	scroll(display, r, sr);
+}
+
+static void
+memblt(Rdp* c, Imgupd* up)
+{
+DBG	fprint(2, "memblt...");
+	if(display->locking)
+		lockdisplay(display);
+	if(up->clipped)
+		replclipr(screen, screen->repl, rectaddpt(up->clipr, screen->r.min));
+	drawmemimg(c, up);
+	if(up->clipped)
+		replclipr(screen, screen->repl, screen->r);
+	if(display->locking)
+		unlockdisplay(display);
+}
+
+
+static void
+cacheimage2(Rdp* c, Imgupd* up)
+{
+DBG	fprint(2, "cacheimage2...");
+	loadmemimg(c, up);
+}
+
+
+static void
+cachecmap(Rdp*, Imgupd*)
+{
+DBG	fprint(2, "cachecmap...");
+	/* BUG: who cares? */
 }

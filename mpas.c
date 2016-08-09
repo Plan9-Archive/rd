@@ -316,6 +316,7 @@ getimgupd(Imgupd* iu, uchar* a, uint nb)
 		werrstr(Eshort);
 		return -1;
 	}
+	iu->type = Ubitmap;
 	iu->x = GSHORT(p+0);
 	iu->y = GSHORT(p+2);
 	iu->xm = GSHORT(p+4);

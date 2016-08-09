@@ -230,7 +230,17 @@ void	drawimgupdate(Rdp*,Share*);
 void	loadcmap(Rdp*,Share*);
 void	scanorders(Rdp*,Share*);
 
-struct Imgupd {
+enum /* Imgupd.type */
+{
+	Ubitmap,
+	Uscrblt,
+	Umemblt,
+	Uicache,
+	Umcache,
+};
+struct Imgupd
+{
+	int	type;
 	int	x;
 	int	y;
 	int	xm;
@@ -243,12 +253,17 @@ struct Imgupd {
 	int	coff;
 	int	sx;
 	int	sy;
+	int	clipped;
+	Rectangle	clipr;
 	int	nbytes;
 	uchar*	bytes;
 };
 int	getimgupd(Imgupd*, uchar*, uint);
-uchar*	getmemblt(Imgupd*, uchar*, uchar*, int, int);
-int	getimgcache2(Imgupd*, uchar*, uint, int, int);
+int	getscrblt(Imgupd*,uchar*,uint,int,int);
+int	getmemblt(Imgupd*,uchar*,uint,int,int);
+int	getimgcache2(Imgupd*,uchar*,uint,int,int);
+int	getcmapcache(Imgupd*,uchar*,uint,int,int);
+
 void	loadmemimg(Rdp*, Imgupd*);
 void	drawmemimg(Rdp*, Imgupd*);
 

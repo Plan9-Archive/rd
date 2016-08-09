@@ -1,7 +1,6 @@
 /* /lib/rfc/rfc2781, also translates \n to \r\n */
 #include <u.h>
 #include <libc.h>
-#include <draw.h>
 #include "dat.h"
 #include "fns.h"
 

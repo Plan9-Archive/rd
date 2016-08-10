@@ -35,7 +35,7 @@ struct Clipmsg
 	uchar	*data;
 	uint		ndata;
 };
-static	int	clipputmsg(Clipmsg*,uchar*,int);
+static	int	clipputmsg(uchar*,int,Clipmsg*);
 static	int	clipgetmsg(Clipmsg*,uchar*,int);
 
 static	void	clipattached(Rdp*,Clipmsg*);
@@ -80,7 +80,7 @@ clipannounce(Rdp* c)
 	t.flags = 0;
 	t.fmtid = FmtUnicode;
 	t.ndata = 0;
-	n = clipputmsg(&t, a, sizeof(a));
+	n = clipputmsg(a, sizeof(a), &t);
 	if(sendvc(c, cliprdr, a, n) < 0)
 		fprint(2, "clipannounce: %r\n");
 }
@@ -96,7 +96,7 @@ cliprequest(Rdp* c)
 	t.flags = 0;
 	t.fmtid = FmtUnicode;
 	t.ndata = 0;
-	n = clipputmsg(&t, a, sizeof(a));
+	n = clipputmsg(a, sizeof(a), &t);
 	if(sendvc(c, cliprdr, a, n) < 0)
 		fprint(2, "cliprequest: %r\n");
 }
@@ -120,7 +120,7 @@ clipnoted(Rdp* c, Clipmsg *m)
 	t.type = Cnoted;
 	t.flags = Fok;
 	t.ndata = 0;
-	n = clipputmsg(&t, a, sizeof(a));
+	n = clipputmsg(a, sizeof(a), &t);
 	if(sendvc(c, cliprdr, a, n) < 0)
 		fprint(2, "clipnoted: %r\n");
 }
@@ -153,7 +153,7 @@ cliprequested(Rdp* c, Clipmsg *m)
   Respond:
 	t.data = b+8;
 	t.ndata = nb;
-	n = clipputmsg(&t, b, nb+8);
+	n = clipputmsg(b, nb+8, &t);
 	if(sendvc(c, cliprdr, b, n) < 0)
 		fprint(2, "cliprequested: %r\n");
 	free(b);
@@ -174,7 +174,7 @@ clipprovided(Rdp*, Clipmsg *m)
 }
 
 static int
-clipputmsg(Clipmsg *m, uchar *a, int n)
+clipputmsg(uchar *a, int n, Clipmsg *m)
 {
 	if(n < 8){
 		werrstr(Esmall);

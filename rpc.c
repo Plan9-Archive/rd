@@ -111,7 +111,7 @@ int
 joinchannel(Rdp* c, int mcsuid, int chanid)
 {
 	Msg t, r;
-	
+
 	t.type = Mjoin;
 	t.mcsuid = mcsuid;
 	t.chanid = chanid;

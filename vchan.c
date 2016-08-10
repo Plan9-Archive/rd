@@ -29,6 +29,12 @@ static Vchan vctab[] =
 		.fn = clipvcfn,
 		.flags = Inited,
 	},
+	{
+		.mcsid = GLOBALCHAN+2,
+		.name = "RDPSND",
+		.fn = audiovcfn,
+		.flags = Inited,
+	},
 };
 static uint nvc = nelem(vctab);
 
@@ -68,8 +74,10 @@ defragvc(Rdp*, Msg* m)
 	int n;
 	
 	vc = lookupvc(m->chanid);
-	if(vc == nil)
+	if(vc == nil){
+		fprint(2, "defragvc: bad chanid\n");
 		return -1;
+	}
 
 	if(m->flags&First)
 		vc->pos = 0;
@@ -97,8 +105,10 @@ callvcfunc(Rdp *c, Msg* m)
 {
 	Vchan* vc;
 	vc = lookupvc(m->chanid);
-	if(vc == nil)
+	if(vc == nil || vc->fn==nil){
+		fprint(2, "unhandled virtual channel[%d] msg\n", m->chanid);
 		return;
+	}
 	vc->fn(c, m->data, m->ndata);
 }
 

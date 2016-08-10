@@ -63,6 +63,7 @@ void	erectdom(Rdp*);
 void	readnet(Rdp*);
 void	clipannounce(Rdp*);
 void	clipvcfn(Rdp*, uchar*,uint);
+void	audiovcfn(Rdp*, uchar*,uint);
 void	pollsnarf(Rdp*);
 
 void	initscreen(Rdp*);

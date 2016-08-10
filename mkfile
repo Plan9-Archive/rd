@@ -7,6 +7,7 @@ CLEANFILES=$O.thread
 HFILES=fns.h dat.h
 OFILES=\
 	alloc.$O\
+	audio.$O\
 	cap.$O\
 	draw.$O\
 	eclip.$O\
@@ -30,6 +31,7 @@ OFILES=\
 
 THREADOFILES=\
 	alloc.$O\
+	audio.$O\
 	cap.$O\
 	draw.$O\
 	eclip.$O\

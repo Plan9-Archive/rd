@@ -4,6 +4,17 @@
 #include "dat.h"
 #include "fns.h"
 
+/*
+BUG requires RDPDR support...
+
+[MS-RDPEA] "6 Appendix A: Product Behavior":
+<1> Section 2.1: In Windows, the client advertises the static virtual
+channel named "RDPDR", as defined in [MS-RDPEFS].  If that channel is
+not advertised, the server will not issue any communication on the
+"RDPSND" channel.  Not supported on Windows XP and Windows Server
+2003.
+*/
+
 static char	rdpsnd[]				= "RDPSND";
 
 enum	/* Audiomsg.type */

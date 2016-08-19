@@ -458,6 +458,7 @@ putclientinfo(uchar* b, uint nb, Msg* m)
 		| PerfNoAnim
 		| PerfNoCursorset
 		| PerfNoTheming
+		| PerfFontAA
 		;
 
 	p = txprep(b, nb, ndata, 0, m->mcsuid, Sinfopk);

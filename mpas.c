@@ -225,8 +225,6 @@ getshareT(Share* as, uchar* p, uint nb)
 			}
 			ep = p+ulenr;
 		}
-
-		/* BUG add more boundary checks */
 	
 		switch (pduType2){
 		case ADsync:
@@ -240,6 +238,10 @@ getshareT(Share* as, uchar* p, uint nb)
 			break;
 		case ADerrx:
 			/* 2.2.5.1.1 Set Error Info PDU Data (TS_SET_ERROR_INFO_PDU) */
+			if(p+4 > ep){
+				werrstr("ADdraw: %s", Eshort);
+				return -1;
+			}
 			as->type = ShEinfo;
 			as->err = GLONG(p);
 			break;

@@ -108,16 +108,16 @@ putmsg(uchar* b, uint nb, Msg* m)
 	switch(m->type){
 	case Xconnect:
 		/* 5.4.2.1 Negotiation-Based Approach */
-		nld = 25+8;
+		nld = 20+8;
 		n = mktpcr(b, nb, nld);
 		if(n < 0)
 			return -1;
 		p = b+n-nld;
 		ep = b+n;
 	
-		memcpy(p, "Cookie: mstshash=eltons\r\n", 25);
+		memcpy(p, "Cookie: mstshash=x\r\n", 20);
 		neg = (Rdpnego){Tnego, 0, m->negproto};
-		if(putnego(p+25, ep-p, &neg) != 8){
+		if(putnego(p+20, ep-p, &neg) != 8){
 			werrstr("pnego failed: %r");
 			return -1;
 		}

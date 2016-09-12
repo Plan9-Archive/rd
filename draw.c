@@ -85,23 +85,25 @@ imgupd(Rdp* c, Imgupd* up)
 }
 
 static void
-scrblt(Rdp*, Imgupd* up)
+scrblt(Rdp* c, Imgupd* up)
 {
 	Rectangle r;
 	Point p;
 
+	USED(c);
 	r = rectaddpt(Rect(up->x, up->y, up->x+up->xsz, up->y+up->ysz), screen->r.min);
 	p = addpt(Pt(up->sx, up->sy), screen->r.min);
 	draw(screen, r, screen, nil, p);
 }
 
 static void
-memblt(Rdp*, Imgupd* up)
+memblt(Rdp* c, Imgupd* up)
 {
 	Image* img;
 	Rectangle clipr, r;
 	Point pt;
 
+	USED(c);
 	if(up->cid >= nelem(icache) || up->coff >= nelem(*icache)){
 		fprint(2, "drawmemimg: bad cache spec [%d %d]\n", up->cid, up->coff);
 		return;
@@ -156,9 +158,11 @@ cacheimage2(Rdp* c, Imgupd* up)
 }
 
 static void
-cachecmap(Rdp*, Imgupd*)
+cachecmap(Rdp* c, Imgupd* up)
 {
 	/* BUG: who cares? */
+	USED(c);
+	USED(up);
 }
 
 static void

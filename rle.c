@@ -46,11 +46,11 @@ enum
 static int
 decode[2][16] =
 {
-[Std]	{
+[Std]={
 		Bg, 	Bg, 	Fg, 	Fg,	Mix,	Mix,	Fill,	Fill,
 		Lit,	Lit,	-1, 	-1,	FgS,	MixS,	Dith,	-1,
 	},
-[Ext]	{
+[Ext]={
 		Bg, 	Fg, 	Mix,	Fill,	Lit,	-1, 	FgS,	MixS,
 		Dith,	Mix3,	Mix5,	-1, 	-1, 	Wpix,	Bpix,	-1,
 	}

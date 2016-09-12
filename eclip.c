@@ -102,8 +102,9 @@ cliprequest(Rdp* c)
 }
 
 static void
-clipattached(Rdp* c, Clipmsg*)
+clipattached(Rdp* c, Clipmsg *m)
 {
+	USED(m);
 	clipannounce(c);
 }
 
@@ -143,7 +144,7 @@ cliprequested(Rdp* c, Clipmsg *m)
 		goto Respond;
 	}
 
-	s = getsnarf(&ns);
+	s = getsnarfn(&ns);
 	if(s == nil)
 		goto Respond;
 	nb = ns*4;
@@ -160,15 +161,16 @@ cliprequested(Rdp* c, Clipmsg *m)
 }
 
 static void
-clipprovided(Rdp*, Clipmsg *m)
+clipprovided(Rdp* c, Clipmsg *m)
 {
 	char *s;
 	int n, ns;
 
+	USED(c);
 	ns = m->ndata*UTFmax/2;
 	s = emalloc(ns);
 	n = fromutf16(s, ns, m->data, m->ndata);
-	putsnarf(s, n);
+	putsnarfn(s, n);
 	free(s);
 	return;
 }

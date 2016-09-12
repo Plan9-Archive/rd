@@ -221,8 +221,9 @@ activate(Rdp* c, Share* as)
 }
 
 void
-deactivate(Rdp* c, Share*)
+deactivate(Rdp* c, Share* as)
 {
+	USED(as);
 	c->active = 0;
 }
 

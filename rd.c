@@ -165,7 +165,7 @@ main(int argc, char *argv[])
 	c->local = getenv("sysname");
 	c->user = getenv("user");
 	if(c->local == nil)
-		sysfatal("set $sysname or use -n\n");
+		sysfatal("set $sysname\n");
 	if(c->user == nil)
 		sysfatal("set $user");
 	if(doauth){

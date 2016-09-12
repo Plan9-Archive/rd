@@ -68,11 +68,12 @@ namevc(char* name)
 }
 
 int
-defragvc(Rdp*, Msg* m)
+defragvc(Rdp* c, Msg* m)
 {
 	Vchan* vc;
 	int n;
-	
+
+	USED(c);
 	vc = lookupvc(m->chanid);
 	if(vc == nil){
 		fprint(2, "defragvc: bad chanid\n");

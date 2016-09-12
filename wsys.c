@@ -35,11 +35,12 @@ ishidden(void)
 }
 
 void
-eresized(Rdp* c, int)
+eresized(Rdp* c, int refresh)
 {
 	int fd;
 	Point d;
 
+	USED(refresh);
 	if(display->locking)
 		lockdisplay(display);
 	if(getwindow(display, Refnone) < 0)
@@ -70,7 +71,7 @@ initsnarf(void)
  * fd here rather than use snarffd
  */
 void
-putsnarf(char* s, int nb)
+putsnarfn(char* s, int nb)
 {
 	int fd, i;
 
@@ -91,7 +92,7 @@ putsnarf(char* s, int nb)
 }
 
 char*
-getsnarf(int *pnb)
+getsnarfn(int *pnb)
 {
 	int i, n;
 	char *s, buf[BUFSIZE];

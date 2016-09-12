@@ -47,10 +47,11 @@ enum
 
 
 void
-audiovcfn(Rdp*, uchar* a, uint nb)
+audiovcfn(Rdp* c, uchar* a, uint nb)
 {
 	Audiomsg r;
 
+	USED(c);
 fprint(2, " A ");
 	if(getaudiomsg(&r, a, nb) < 0){
 		fprint(2, "audio: %r\n");

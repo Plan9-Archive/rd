@@ -14,8 +14,8 @@ uchar*	txprep(uchar*,int,int,int,int,int);
 
 /* snarf.c */
 void		initsnarf(void);
-char*	getsnarf(int*);
-void		putsnarf(char*,int);
+char*	getsnarfn(int*);
+void		putsnarfn(char*,int);
 
 /* mouse.c */
 void		warpmouse(int,int);

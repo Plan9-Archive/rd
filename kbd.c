@@ -7,7 +7,7 @@
 
 enum
 {
-	Kbrk=	Spec|0x61,
+	Kbrk=	KF|0x861,
 	KeyEx= 	0x0100,
 	KeyUp=	0x8000,
 };

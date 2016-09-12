@@ -98,10 +98,11 @@ getcaps(Caps* caps, uchar* a, uint nb)
 }
 
 int
-sizecaps(Caps*)
+sizecaps(Caps* caps)
 {
 	int i, n;
 
+	USED(caps);
 	n = 0;
 	for(i = 0; i < nelem(ctab); i++)
 		n += ctab[i].size;
@@ -127,10 +128,11 @@ putcaps(uchar* a, uint nb, Caps* caps)
 }
 
 static int
-putncap(uchar *p, uint nb, Caps*)
+putncap(uchar *p, uint nb, Caps* caps)
 {
 	int ncap;
-	
+
+	USED(caps);
 	ncap = 8;
 	
 	if(nb<4){
@@ -144,10 +146,11 @@ putncap(uchar *p, uint nb, Caps*)
 
 /* 2.2.7.1.1 General Capability Set (TS_GENERAL_CAPABILITYSET) */
 static int
-putgencaps(uchar *p, uint nb, Caps*)
+putgencaps(uchar *p, uint nb, Caps* caps)
 {
 	int extraFlags;
-	
+
+	USED(caps);
 	extraFlags = 0
 		| CanFastpath
 		| NoBitcomphdr
@@ -201,7 +204,7 @@ putbitcaps(uchar *p, uint nb, Caps* caps)
 
 /* 2.2.7.1.3 Order Capability Set (TS_ORDER_CAPABILITYSET) */
 static int
-putordcaps(uchar *p, uint nb, Caps*)
+putordcaps(uchar *p, uint nb, Caps* caps)
 {
 	ushort orderFlags;
 	enum
@@ -211,7 +214,8 @@ putordcaps(uchar *p, uint nb, Caps*)
 		COLORINDEXSUPPORT=			0x20,
 		SOLIDPATTERNBRUSHONLY=		0x40,
 	};
-	
+
+	USED(caps);
 	orderFlags = 0
 		| NEGOTIATEORDERSUPPORT
 		| ZEROBOUNDSDELTASSUPPORT
@@ -247,8 +251,9 @@ putordcaps(uchar *p, uint nb, Caps*)
 /* 2.2.7.1.4 Bitmap Cache Capability Set (TS_BITMAPCACHE_CAPABILITYSET) */
 /* 2.2.7.1.4.2 Revision 2 (TS_BITMAPCACHE_CAPABILITYSET_REV2) */
 static int
-putbc2caps(uchar *p, uint nb, Caps*)
+putbc2caps(uchar *p, uint nb, Caps* caps)
 {
+	USED(caps);
 	if(nb<40){
 		werrstr(Eshort);
 		return -1;
@@ -269,8 +274,9 @@ putbc2caps(uchar *p, uint nb, Caps*)
 
 /* 2.2.7.1.5 Pointer Capability Set (TS_POINTER_CAPABILITYSET) */
 static int
-putptrcaps(uchar *p, uint nb, Caps*)
+putptrcaps(uchar *p, uint nb, Caps* caps)
 {
+	USED(caps);
 	if(nb<8){
 		werrstr(Eshort);
 		return -1;
@@ -284,9 +290,10 @@ putptrcaps(uchar *p, uint nb, Caps*)
 
 /* 2.2.7.1.6 Input Capability Set (TS_INPUT_CAPABILITYSET) */
 static int
-putinpcaps(uchar *p, uint nb, Caps*)
+putinpcaps(uchar *p, uint nb, Caps* caps)
 {
 	long inputFlags;
+	USED(caps);
 	enum
 	{
 		INPUT_FLAG_SCANCODES=		0x0001,
@@ -320,11 +327,12 @@ putinpcaps(uchar *p, uint nb, Caps*)
 
 /* 2.2.7.1.8 Glyph Cache Capability Set (TS_GLYPHCACHE_CAPABILITYSET) */
 static int
-putglycaps(uchar *p, uint nb, Caps*)
+putglycaps(uchar *p, uint nb, Caps* caps)
 {
 	enum {
 		GLYPH_SUPPORT_NONE= 0,
 	};
+	USED(caps);
 
 	if(nb<52){
 		werrstr(Eshort);
@@ -350,8 +358,9 @@ putglycaps(uchar *p, uint nb, Caps*)
 
 /* 2.2.7.1.11 Sound Capability Set (TS_SOUND_CAPABILITYSET) */
 static int
-putsndcaps(uchar *p, uint nb, Caps*)
+putsndcaps(uchar *p, uint nb, Caps* caps)
 {
+	USED(caps);
 	if(nb<8){
 		werrstr(Eshort);
 		return -1;

@@ -88,7 +88,7 @@ threadmain(int argc, char *argv[])
 	c->local = getenv("sysname");
 	c->user = getenv("user");
 	if(c->local == nil)
-		sysfatal("set $sysname or use -n\n");
+		sysfatal("set $sysname\n");
 	if(c->user == nil)
 		sysfatal("set $user");
 	if(doauth){
@@ -119,12 +119,12 @@ threadmain(int argc, char *argv[])
 	mousectl = initmouse(nil, screen);
 	if(mousectl == nil){
 		fprint(2, "rd: can't initialize mouse: %r\n");
-		exits("mouse");
+		threadexitsall("mouse");
 	}
 	keyboardctl = initkeyboard(nil);
 	if(keyboardctl == nil){
 		fprint(2, "rd: can't initialize keyboard: %r\n");
-		exits("keyboard");
+		threadexitsall("keyboard");
 	}
 
 	proccreate(keyboardthread, c, STACK);
@@ -173,6 +173,7 @@ mousethread(void* v)
 	Rdp* c;
 	enum { MResize, MMouse, NMALT };
 	static Alt alts[NMALT+1];
+	Mouse m;
 
 	c = v;
 	threadsetname("mousethread");
@@ -180,7 +181,7 @@ mousethread(void* v)
 	alts[MResize].v = nil;
 	alts[MResize].op = CHANRCV;
 	alts[MMouse].c = mousectl->c;
-	alts[MMouse].v = &mousectl->Mouse;
+	alts[MMouse].v = &m;
 	alts[MMouse].op = CHANRCV;
 
 	for(;;){
@@ -189,7 +190,7 @@ mousethread(void* v)
 			eresized(c, 1);
 			break;
 		case MMouse:
-			sendmouse(c, mousectl->Mouse);
+			sendmouse(c, m);
 			break;
 		}
 	}

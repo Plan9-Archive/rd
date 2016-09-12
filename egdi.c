@@ -109,8 +109,8 @@ Order auxtab[8] = {
 uchar
 orderSupport[NumOrders] = 
 {
-	[CanScrBlt]   	1,
-	[CanMemBlt]	1,
+	[CanScrBlt]=   	1,
+	[CanMemBlt]=	1,
 };
 
 static struct GdiContext
@@ -453,10 +453,12 @@ DBG	fprint(2, "getimgcache2...");
 
 /* 2.2.2.2.1.2.4 Cache Color Table (CACHE_COLOR_TABLE_ORDER) */
 static int
-getcmapcache(Imgupd* up, uchar* a, uint nb, int, int)
+getcmapcache(Imgupd* up, uchar* a, uint nb, int xorder, int opt)
 {
 	int cid, n;
 DBG	fprint(2, "getcmapcache...");
+	USED(xorder);
+	USED(opt);
 	
 	cid = a[6];
 	n = GSHORT(a+7);

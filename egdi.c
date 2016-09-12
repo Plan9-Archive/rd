@@ -4,7 +4,7 @@
  */
 #include <u.h>
 #include <libc.h>
-#include <draw.h>
+#include <draw.h>	/* for geometry */
 #include "dat.h"
 #include "fns.h"
 

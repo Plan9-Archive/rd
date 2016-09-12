@@ -15,6 +15,33 @@ extern	/* load.c */
 	int	loadbmp(Image*,Rectangle,uchar*,int,uchar*);
 	int	loadrle(Image*,Rectangle,uchar*,int,uchar*);
 
+static int
+depth2chan(int depth)
+{
+	int chan;
+
+	switch(depth){
+	default:	sysfatal("Unsupported remote color depth: %uhd\n", depth);
+	case 8:	chan = CMAP8; break;
+	case 15:	chan = RGB15; break;
+	case 16:	chan = RGB16; break;
+	case 24:	chan = RGB24; break;
+	case 32:	chan = XRGB32; break;
+	}
+	return chan;
+}
+
+void
+initscreen(Rdp* c)
+{
+	if(initdraw(drawerror, nil, c->label) < 0)
+		sysfatal("initdraw: %r");
+	display->locking = 1;
+	unlockdisplay(display);
+	c->ysz = Dy(screen->r);
+	c->xsz = (Dx(screen->r) +3) & ~3;
+}
+
 void
 drawimgupdate(Rdp *c, Share* s)
 {
@@ -51,11 +78,13 @@ static void
 padresize(Rdp* c)
 {
 	Rectangle rs;
+	int chan;
 
 	rs = rectaddpt(Rpt(ZP, Pt(c->xsz+4, c->ysz+4)), screen->r.min);
 	if(pad==nil || eqrect(pad->r, rs) == 0){
+		chan = depth2chan(c->depth);
 		freeimage(pad);
-		pad = allocimage(display, rs, c->chan, 0, DNofill);
+		pad = allocimage(display, rs, chan, 0, DNofill);
 		if(pad==nil)
 			sysfatal("drawimgupdate: %r");
 	}
@@ -132,6 +161,7 @@ static void
 cacheimage2(Rdp* c, Imgupd* up)
 {
 	int (*loadfn)(Image*,Rectangle,uchar*,int,uchar*);
+	int chan;
 	Image* img;
 	Rectangle r;
 
@@ -146,8 +176,9 @@ cacheimage2(Rdp* c, Imgupd* up)
 
 	img = icache[up->cid][up->coff];
 	if(img==nil || eqrect(img->r, r)==0){
+		chan = depth2chan(c->depth);
 		freeimage(img);
-		img = allocimage(display, r, c->chan, 0, DNofill);
+		img = allocimage(display, r, chan, 0, DNofill);
 		if(img == nil)
 			sysfatal("cacheimage2: %r");
 		icache[up->cid][up->coff] = img;

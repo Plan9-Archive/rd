@@ -7,7 +7,6 @@
 #include "fns.h"
 
 Rdp conn = {
-	.fd = -1,
 	.depth = 16,
 	.windom = "",
 	.passwd = "",
@@ -83,18 +82,6 @@ startsnarfproc(Rdp* c)
 	pollsnarf(c);
 	exits("snarf eof");
 	return 0;
-}
-
-void
-initscreen(Rdp* c)
-{
-	if(initdraw(drawerror, nil, c->label) < 0)
-		sysfatal("initdraw: %r");
-	display->locking = 1;
-	unlockdisplay(display);
-
-	c->ysz = Dy(screen->r);
-	c->xsz = Dx(screen->r);
 }
 
 static int killpid[32];

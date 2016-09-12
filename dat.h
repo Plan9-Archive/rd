@@ -35,7 +35,6 @@ struct Rdp
 	int		xsz;			/* rfb dimensions */
 	int		ysz;			/* rfb dimensions */
 	int		depth;		/* rfb color depth */
-	ulong	chan;		/* remote graphics channel descriptor */
 	int		hupreason;	/* hangup reason as server explains */
 	int		mcsuid;		/* MCS [T.122] userId */
 	int		userchan;		/* MCS user channelId */

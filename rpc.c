@@ -1,6 +1,5 @@
 #include <u.h>
 #include <libc.h>
-#include <draw.h>
 #include "dat.h"
 #include "fns.h"
 
@@ -198,15 +197,6 @@ activate(Rdp* c, Share* as)
 		sysfatal("server can not Suppress Output PDU");
 	if(!rcaps.bitmap)
 		sysfatal("server concealed their Bitmap Capabilities");
-
-	switch(rcaps.depth){
-	default:	sysfatal("Unsupported server color depth: %uhd\n", rcaps.depth);
-	case 8:	c->chan = CMAP8; break;
-	case 15:	c->chan = RGB15; break;
-	case 16:	c->chan = RGB16; break;
-	case 24:	c->chan = RGB24; break;
-	case 32:	c->chan = XRGB32; break;
-	}
 	c->depth = rcaps.depth;
 	c->xsz = rcaps.xsz;
 	c->ysz = rcaps.ysz;

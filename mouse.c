@@ -1,7 +1,7 @@
 #include <u.h>
 #include <libc.h>
 #include <draw.h>
-#include <mouse.h>
+#include <mouse.h>	/* for screen->r and geometry */
 #include "dat.h"
 #include "fns.h"
 

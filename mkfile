@@ -1,4 +1,3 @@
-
 </$objtype/mkfile
 <$PLAN9/src/mkhdr
 

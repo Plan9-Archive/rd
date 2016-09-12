@@ -142,17 +142,6 @@ threadmain(int argc, char *argv[])
 	sysfatal("hangup");
 }
 
-void
-initscreen(Rdp* c)
-{
-	if(initdraw(drawerror, nil, c->label) < 0)
-		sysfatal("initdraw: %r");
-	display->locking = 1;
-	unlockdisplay(display);
-	c->ysz = Dy(screen->r);
-	c->xsz = (Dx(screen->r) +3) & ~3;
-}
-
 static void
 keyboardthread(void* v)
 {

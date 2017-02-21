@@ -119,11 +119,11 @@ kbdsendscan(Rdp* c, int sc, int mod)
 
 	msec = time(nil);
 	if(mod != 0)
-		passinput(c, msec, InputKeycode, 0, mod, 0);
-	passinput(c, msec, InputKeycode, x|0, sc, 0);
-	passinput(c, msec, InputKeycode, x|KeyUp, sc, 0);
+		act(c, msec, InputKeycode, 0, mod, 0);
+	act(c, msec, InputKeycode, x|0, sc, 0);
+	act(c, msec, InputKeycode, x|KeyUp, sc, 0);
 	if(mod != 0)
-		passinput(c, msec, InputKeycode, KeyUp, mod, 0);
+		act(c, msec, InputKeycode, KeyUp, mod, 0);
 }
 
 void
@@ -132,8 +132,8 @@ kbdsendrune(Rdp* c, Rune r)
 	long msec;
 
 	msec = time(nil);
-	passinput(c, msec, InputUnicode, 0, r, 0);
-	passinput(c, msec, InputUnicode, KeyUp, r, 0);
+	act(c, msec, InputUnicode, 0, r, 0);
+	act(c, msec, InputUnicode, KeyUp, r, 0);
 }
 
 void

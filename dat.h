@@ -56,7 +56,7 @@ void	confirmactive(Rdp*);
 void	assync(Rdp*);
 void	asctl(Rdp*,int);
 void	asfontls(Rdp*);
-void	passinput(Rdp*,ulong,int,int,int,int);
+void	act(Rdp*,ulong,int,int,int,int);
 void	turnupdates(Rdp*, int);
 void	erectdom(Rdp*);
 void	readnet(Rdp*);

@@ -207,7 +207,7 @@ activate(Rdp* c, Share* as)
 	confirmactive(c);
 	finalhandshake(c);
 
-	passinput(c, 0, InputSync, 0, 0, 0);
+	act(c, 0, InputSync, 0, 0, 0);
 }
 
 void
@@ -356,7 +356,7 @@ asfontls(Rdp* c)
 }
 
 void
-passinput(Rdp* c, ulong msec, int typ, int f, int a, int b)
+act(Rdp* c, ulong msec, int typ, int f, int a, int b)
 {
 	Msg t;
 
@@ -369,7 +369,7 @@ passinput(Rdp* c, ulong msec, int typ, int f, int a, int b)
 	t.iarg[0] = a;
 	t.iarg[1] = b;
 	if(writemsg(c, &t) <= 0)
-		sysfatal("passinput: %r");
+		sysfatal("act: %r");
 }
 
 void

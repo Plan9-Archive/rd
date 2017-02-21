@@ -18,7 +18,7 @@ enum {
 static void
 sendmouse1(Rdp* c, Mouse m, int f)
 {
-	passinput(c, m.msec, InputMouse, f, m.xy.x, m.xy.y);
+	act(c, m.msec, InputMouse, f, m.xy.x, m.xy.y);
 }
 
 void

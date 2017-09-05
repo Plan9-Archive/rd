@@ -28,27 +28,27 @@ toutf16(uchar* buf, int nb, char* s, int ns)
 		if(*s == '\n'){
 			if(b+2 > eb)
 				break;
-			PSHORT(b, '\r');
+			iputs(b, '\r');
 			b+=2;
 		}
 		s += chartorune(&r, s);
 		if(b+2 > eb)
 			break;
 		if(r <= Bits16){
-			PSHORT(b, r);
+			iputs(b, r);
 			b+=2;
 			continue;
 		} 
 		r -= Bits16+1;
 		if(r > Bits20){
-			PSHORT(b, Runeerror);
+			iputs(b, Runeerror);
 			b+=2;
 			continue;
 		}
 		if(b+4 > eb)
 			break;
-		PSHORT(b+0, HHalfZoneS | (r >> 10));
-		PSHORT(b+2, LHalfZoneS | (r & Bits10));
+		iputs(b+0, HHalfZoneS | (r >> 10));
+		iputs(b+2, LHalfZoneS | (r & Bits10));
 		b+=4;
 	}
 	return b-buf;
@@ -69,7 +69,7 @@ fromutf16(char* str, int ns, uchar* ws, int nw)
 	eq = ws + nw;
 
 	while(q+2 <= eq){
-		w1 = GSHORT(q);
+		w1 = igets(q);
 		q += 2;
 		if(w1<HHalfZoneS || w1>LHalfZoneE){
 			r = w1;
@@ -83,7 +83,7 @@ fromutf16(char* str, int ns, uchar* ws, int nw)
 			r = Runeerror;
 			goto Convert;
 		}
-		w2 = GSHORT(q);
+		w2 = igets(q);
 		q += 2;
 		if(w2<LHalfZoneS || w2>LHalfZoneE){
 			r = Runeerror;

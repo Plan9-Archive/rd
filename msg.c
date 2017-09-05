@@ -29,8 +29,8 @@ putnego(uchar* b, uint nb, Rdpnego* m)
 	}
 	b[0] = m->type;
 	b[1] = m->flags;
-	PSHORT(b+2, len);
-	PLONG(b+4, m->proto);
+	iputs(b+2, len);
+	iputl(b+4, m->proto);
 
 	return len;
 }
@@ -46,8 +46,8 @@ getnego(Rdpnego* m, uchar* b, uint nb)
 	}
 	m->type = b[0];
 	m->flags = b[1];
-	len = GSHORT(b+2);
-	m->proto = GLONG(b+4);
+	len = igets(b+2);
+	m->proto = igetl(b+4);
 	if(len != 8){
 		werrstr("bad length in RDP Nego Response");
 		return -1;
@@ -94,7 +94,7 @@ txprep(uchar* buf, int nb, int ndata, int chanid, int mcsuid, int secflags)
 	p += 8;
 
 	if(shdsize > 0)
-		PLONG(p, secflags);
+		iputl(p, secflags);
 	return p + shdsize;
 }
 
@@ -139,8 +139,8 @@ putmsg(uchar* b, uint nb, Msg* m)
 			return -1;
 		p = b+TPDATAFIXLEN;
 		p[0] = (Mcjr << 2);
-		PSHORTB(p+1, m->mcsuid);
-		PSHORTB(p+3, m->chanid);
+		hnputs(p+1, m->mcsuid);
+		hnputs(p+3, m->chanid);
 		return n;
 
 	case Merectdom:
@@ -149,8 +149,8 @@ putmsg(uchar* b, uint nb, Msg* m)
 			return -1;
 		p = b+TPDATAFIXLEN;
 		p[0] = (Medr << 2);
-		PSHORTB(p+1, 1);
-		PSHORTB(p+3, 1);
+		hnputs(p+1, 1);
+		hnputs(p+3, 1);
 		return n;
 
 	case Mconnect:
@@ -188,8 +188,8 @@ putmsg(uchar* b, uint nb, Msg* m)
 		p = txprep(b, nb, nld, m->chanid, m->originid, 0);
 		if(p == nil)
 			return -1;
-		PLONG(p+0, m->len);
-		PLONG(p+4, m->flags);
+		iputl(p+0, m->len);
+		iputl(p+4, m->flags);
 		memcpy(p+8, m->data, m->ndata);
 		len = p+nld-b;
 		return len;
@@ -201,8 +201,8 @@ putmsg(uchar* b, uint nb, Msg* m)
 			return -1;
 		len = p+nld-b;
 		q = putsdh(p, p+nld, nld, ADsync, m->originid, m->shareid);
-		PSHORT(q+0, 1);	// sync message type
-		PSHORT(q+2, m->mcsuid);	// target MCS userId
+		iputs(q+0, 1);	// sync message type
+		iputs(q+2, m->mcsuid);	// target MCS userId
 		return len;
 
 	case Actl:
@@ -214,9 +214,9 @@ putmsg(uchar* b, uint nb, Msg* m)
 	
 		q = putsdh(p, p+nld, nld, ADctl, m->originid, m->shareid);
 		/* action[2] grantId[2] controlId[2] */
-		PSHORT(q+0, m->action);
-		PSHORT(q+2, 0);
-		PLONG(q+4, 0);
+		iputs(q+0, m->action);
+		iputs(q+2, 0);
+		iputl(q+4, 0);
 		return len;
 
 	case Afontls:
@@ -227,10 +227,10 @@ putmsg(uchar* b, uint nb, Msg* m)
 		len = p+nld-b;
 	
 		q = putsdh(p, p+nld, nld, ADfontlist, m->originid, m->shareid);
-		PSHORT(q+0, 0);	// numberFonts
-		PSHORT(q+2, 0);	// totalNumFonts
-		PSHORT(q+4, 2+1);	// listFlags: 1=first, 2=last
-		PSHORT(q+6, 50);	// entrySize
+		iputs(q+0, 0);	// numberFonts
+		iputs(q+2, 0);	// totalNumFonts
+		iputs(q+4, 2+1);	// listFlags: 1=first, 2=last
+		iputs(q+6, 50);	// entrySize
 		return len;
 
 	case Ainput:
@@ -241,13 +241,13 @@ putmsg(uchar* b, uint nb, Msg* m)
 		len = p+nld-b;
 	
 		q = putsdh(p, p+nld, nld, ADinput, m->originid, m->shareid);
-		PSHORT(q+0, 1);	/* numEvents */
-		PSHORT(q+2, 0);
-		PLONG(q+4, m->msec);
-		PSHORT(q+8, m->mtype);
-		PSHORT(q+10, m->flags);
-		PSHORT(q+12, m->iarg[0]);
-		PSHORT(q+14, m->iarg[1]);
+		iputs(q+0, 1);	/* numEvents */
+		iputs(q+2, 0);
+		iputl(q+4, m->msec);
+		iputs(q+8, m->mtype);
+		iputs(q+10, m->flags);
+		iputs(q+12, m->iarg[0]);
+		iputs(q+14, m->iarg[1]);
 		return len;
 
 	case Lreq:
@@ -274,10 +274,10 @@ putmsg(uchar* b, uint nb, Msg* m)
 		q[0] = (m->allow?1:0); 
 		memset(q+1, 3, 0);
 		if(m->allow){
-			PSHORT(q+4, 0);	// left
-			PSHORT(q+6, 0);	// top
-			PSHORT(q+8, m->xsz-1);	// right
-			PSHORT(q+10, m->ysz-1);	// bottom
+			iputs(q+4, 0);	// left
+			iputs(q+6, 0);	// top
+			iputs(q+8, m->xsz-1);	// right
+			iputs(q+10, m->ysz-1);	// bottom
 		}
 		return len;
 
@@ -356,7 +356,7 @@ getmsg(Msg* m, uchar* b, uint nb)
 					werrstr(Eshort);
 					return -1;
 				}
-				m->mcsuid = GSHORTB(p+2);
+				m->mcsuid = nhgets(p+2);
 			}
 			return nb;
 		case Mcjc:
@@ -381,8 +381,8 @@ getmsg(Msg* m, uchar* b, uint nb)
 				return -1;
 			if(m->chanid != GLOBALCHAN){
 				m->type = Mvchan;
-				m->len = GLONG(p+0);
-				m->flags = GLONG(p+4);
+				m->len = igetl(p+0);
+				m->flags = igetl(p+4);
 				m->data = p+8;
 				m->ndata = ep-p-8;
 				if(m->len > 8*1024*1024){
@@ -395,8 +395,8 @@ getmsg(Msg* m, uchar* b, uint nb)
 				m->type = Aflow;
 				return nb;
 			}
-			secflg = GSHORT(p);
-			sctlver = GSHORT(p+2)>>4;
+			secflg = igets(p);
+			sctlver = igets(p+2)>>4;
 			if(secflg&Slicensepk && sctlver != 1)
 				return getlicensemsg(m, p+4, ep-(p+4));
 			

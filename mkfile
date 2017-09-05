@@ -8,6 +8,7 @@ HFILES=fns.h dat.h
 OFILES=\
 	alloc.$O\
 	audio.$O\
+	byte.$O\
 	cap.$O\
 	draw.$O\
 	eclip.$O\

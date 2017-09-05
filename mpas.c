@@ -83,7 +83,7 @@ getshareF(Share* as, uchar* a, uint nbytes)
 		werrstr(Eshort);
 		return -1;
 	}
-	nb = GSHORT(p);
+	nb = igets(p);
 	p += 2;
 	q = p+nb;
 	if(cflags&Pcompress){
@@ -105,7 +105,7 @@ getshareF(Share* as, uchar* a, uint nbytes)
 			return -1;
 		}
 		as->type = ShUorders;
-		as->nr = GSHORT(p);
+		as->nr = igets(p);
 		as->data = p+2;
 		as->ndata = ep-(p+2);
 		break;
@@ -115,7 +115,7 @@ getshareF(Share* as, uchar* a, uint nbytes)
 			return -1;
 		}
 		as->type = ShUimg;
-		as->nr = GSHORT(p+2);
+		as->nr = igets(p+2);
 		as->data = p+4;
 		as->ndata = ep-(p+4);
 		break;
@@ -130,8 +130,8 @@ getshareF(Share* as, uchar* a, uint nbytes)
 			return -1;
 		}
 		as->type = ShUwarp;
-		as->x = GSHORT(p+0);
-		as->y = GSHORT(p+2);
+		as->x = igets(p+0);
+		as->y = igets(p+2);
 		break;
 	}
 	return q-a;
@@ -157,13 +157,13 @@ getshareT(Share* as, uchar* p, uint nb)
 		werrstr(Eshort);
 		return -1;
 	}
-	len = GSHORT(p);
+	len = igets(p);
 	if(len < SCHSIZE || len > nb){
 		werrstr("bad length in Share Control PDU header");
 		return -1;
 	}
-	type = GSHORT(p+2)&Bits4;
-	as->source = GSHORT(p+4);
+	type = igets(p+2)&Bits4;
+	as->source = igets(p+4);
 
 	switch(type){
 	case PDUactivate:
@@ -176,15 +176,15 @@ getshareT(Share* as, uchar* p, uint nb)
 			werrstr(Eshort);
 			return -1;
 		}
-		as->shareid = GLONG(p+6);
-		nsrc = GSHORT(p+10);
-		as->ndata = GSHORT(p+12);
+		as->shareid = igetl(p+6);
+		nsrc = igets(p+10);
+		as->ndata = igets(p+12);
 		if(len<14+nsrc+as->ndata){
 			werrstr(Eshort);
 			return -1;
 		}
 		as->data = p+14+nsrc;
-		as->ncap = GSHORT(p+14+nsrc);
+		as->ncap = igets(p+14+nsrc);
 		break;
 	case PDUdeactivate:
 		as->type = ShDeactivate;
@@ -204,10 +204,10 @@ getshareT(Share* as, uchar* p, uint nb)
 			return -1;
 		}
 	
-		ulen = GSHORT(p+12);
+		ulen = igets(p+12);
 		pduType2 = p[14];
 		ctype = p[15];
-		clen = GSHORT(p+16) - SCDSIZE;
+		clen = igets(p+16) - SCDSIZE;
 		p += 18;
 	
 		if(ctype&(1<<5)){
@@ -243,7 +243,7 @@ getshareT(Share* as, uchar* p, uint nb)
 				return -1;
 			}
 			as->type = ShEinfo;
-			as->err = GLONG(p);
+			as->err = igetl(p);
 			break;
 		case ADdraw:
 			/* 2.2.9.1.1.3.1 Slow-Path Graphics Update (TS_GRAPHICS_UPDATE) */
@@ -252,7 +252,7 @@ getshareT(Share* as, uchar* p, uint nb)
 				werrstr("ADdraw: %s", Eshort);
 				return -1;
 			}
-			uptype = GSHORT(p);
+			uptype = igets(p);
 			switch(uptype){
 			case UpdOrders:
 				if(p+8 > ep){
@@ -260,7 +260,7 @@ getshareT(Share* as, uchar* p, uint nb)
 					return -1;
 				}
 				as->type = ShUorders;
-				as->nr = GSHORT(p+4);
+				as->nr = igets(p+4);
 				as->data = p+8;
 				as->ndata = ep-(p+8);
 				break;
@@ -270,7 +270,7 @@ getshareT(Share* as, uchar* p, uint nb)
 					return -1;
 				}
 				as->type = ShUimg;
-				as->nr = GSHORT(p+2);
+				as->nr = igets(p+2);
 				as->data = p+4;
 				as->ndata = ep-(p+4);
 				break;
@@ -287,15 +287,15 @@ getshareT(Share* as, uchar* p, uint nb)
 				werrstr(Eshort);
 				return -1;
 			}
-			mtype = GSHORT(p);
+			mtype = igets(p);
 			if(mtype == PDUcursorwarp){
 				if(p+8 > ep){
 					werrstr(Eshort);
 					return -1;
 				}
 				as->type = ShUwarp;
-				as->x = GSHORT(p+4);
-				as->y = GSHORT(p+6);
+				as->x = igets(p+4);
+				as->y = igets(p+6);
 				break;
 			}
 		}
@@ -318,15 +318,15 @@ getimgupd(Imgupd* iu, uchar* a, uint nb)
 		return -1;
 	}
 	iu->type = Ubitmap;
-	iu->x = GSHORT(p+0);
-	iu->y = GSHORT(p+2);
-	iu->xm = GSHORT(p+4);
-	iu->ym = GSHORT(p+6);
-	iu->xsz = GSHORT(p+8);
-	iu->ysz = GSHORT(p+10);
-	iu->depth = GSHORT(p+12);
-	opt = GSHORT(p+14);
-	len = GSHORT(p+16);
+	iu->x = igets(p+0);
+	iu->y = igets(p+2);
+	iu->xm = igets(p+4);
+	iu->ym = igets(p+6);
+	iu->xsz = igets(p+8);
+	iu->ysz = igets(p+10);
+	iu->depth = igets(p+12);
+	opt = igets(p+14);
+	len = igets(p+16);
 	p += 18;
 	s = p+len;
 	if(s > ep){
@@ -351,7 +351,7 @@ isflowpdu(uchar* p, uchar* ep)
 		werrstr(Eshort);
 		return -1;
 	}
-	marker = GSHORT(p);
+	marker = igets(p);
 	return marker == 0x8000;
 }
 
@@ -386,15 +386,15 @@ putconfirmactive(uchar* b, uint nb, Msg* m)
 
 	/* 2.2.8.1.1.1.1 Share Control Header */
 	/* totalLength[2] pduType[2] PDUSource[2] */
-	PSHORT(p+0, ndata);
-	PSHORT(p+2, PDUactivated | (1<<4));
-	PSHORT(p+4, userchan);
+	iputs(p+0, ndata);
+	iputs(p+2, PDUactivated | (1<<4));
+	iputs(p+4, userchan);
 
 	/* shareId[4] originatorId[2] sdlen[2] caplen[2] srcdesc[sdlen] ncap[2] pad[2] */
-	PLONG(p+6, shareid);
-	PSHORT(p+10, originid);
-	PSHORT(p+12, nsrc);
-	PSHORT(p+14, capsize);
+	iputl(p+6, shareid);
+	iputs(p+10, originid);
+	iputs(p+12, nsrc);
+	iputs(p+14, capsize);
 	memcpy(p+16, srcDesc, nsrc);
 	p += nsrc+16;
 	if((n = putcaps(p, ep-p, &caps)) < 0)
@@ -467,13 +467,13 @@ putclientinfo(uchar* b, uint nb, Msg* m)
 	usize = p+ndata-b;
 	q = p;
 
-	PLONG(q+0, 0);	// codePage; langId when opt&InfUnicode
-	PLONG(q+4, opt);
-	PSHORT(q+8, ndom-2);
-	PSHORT(q+10, nusr-2);
-	PSHORT(q+12, npw-2);
-	PSHORT(q+14, nsh-2);
-	PSHORT(q+16, nwd-2);
+	iputl(q+0, 0);	// codePage; langId when opt&InfUnicode
+	iputl(q+4, opt);
+	iputs(q+8, ndom-2);
+	iputs(q+10, nusr-2);
+	iputs(q+12, npw-2);
+	iputs(q+14, nsh-2);
+	iputs(q+16, nwd-2);
 	q += 18;
 	memcpy(q, wdom, ndom);
 	q += ndom;
@@ -486,13 +486,13 @@ putclientinfo(uchar* b, uint nb, Msg* m)
 	memcpy(q, wwd, nwd);
 	q += nwd;
 
-	PSHORT(q+0, 2);	// cbClientAddress 
-	PSHORT(q+2, 0);	// clientAddress
-	PSHORT(q+4, 2);	// cbClientDir
-	PSHORT(q+6, 0);	// clientDir
+	iputs(q+0, 2);	// cbClientAddress 
+	iputs(q+2, 0);	// clientAddress
+	iputs(q+4, 2);	// cbClientDir
+	iputs(q+6, 0);	// clientDir
 	memset(q+8, 172, 0);	// clientTimeZone
-	PLONG(q+180, 0);	// clientSessionId
-	PLONG(q+184, perfopt);	// performanceFlags 
+	iputl(q+180, 0);	// clientSessionId
+	iputl(q+184, perfopt);	// performanceFlags 
 	q += 188;
 
 	assert(q == p+ndata);
@@ -512,15 +512,15 @@ putsdh(uchar* p, uchar* ep, int ndata, int pduType2, int originid, int shareid)
 {
 	if(p+18>ep)
 		sysfatal(Eshort);
-	PSHORT(p+0, ndata);
-	PSHORT(p+2, (PDUdata | (1<<4)));
-	PSHORT(p+4, originid);
-	PLONG(p+6, shareid);
+	iputs(p+0, ndata);
+	iputs(p+2, (PDUdata | (1<<4)));
+	iputs(p+4, originid);
+	iputl(p+6, shareid);
 	p[10] = 0;	// pad1
 	p[11] = 1;	// streamId: 1=Low, 2=Medium, 4=High
-	PSHORT(p+12, ndata);
+	iputs(p+12, ndata);
 	p[14] = pduType2;
 	p[15] = 0; // compressedType 
-	PSHORT(p+16, 0); // compressedLength 
+	iputs(p+16, 0); // compressedLength 
 	return p+18;
 }

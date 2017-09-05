@@ -94,9 +94,9 @@ gblen(uchar *p, uchar* ep, int* plen)
 	default:	werrstr(Ebignum); return nil;
 	case 0:	*plen = 0; break;
 	case 1:	*plen = p[0]; break;
-	case 2:	*plen = GSHORTB(p); break;
-	case 3:	*plen = (GSHORTB(p)<<8)|p[2]; break;
-	case 4:	*plen = GLONGB(p); break;
+	case 2:	*plen = nhgets(p); break;
+	case 3:	*plen = (nhgets(p)<<8)|p[2]; break;
+	case 4:	*plen = nhgetl(p); break;
 	}
 	return p+c;
 }
@@ -106,7 +106,7 @@ pbshort(uchar* p, int v)
 {
 	p[0]=2;
 	p[1]=2;
-	PSHORTB(p+2,v);
+	hnputs(p+2,v);
 }
 
 int
@@ -145,7 +145,7 @@ mcschan(uchar *p, uchar* ep)
 		werrstr(Eshort);
 		return -1;
 	}
-	return GSHORTB(p+3);
+	return nhgets(p+3);
 }
 
 uchar*
@@ -184,9 +184,9 @@ mkmcsci(uchar* buf, int nbuf, int ndata)
 		return -1;
 	}
 
-	PSHORTB(p, 0x7f65);	/* Connect-Initial tag */
+	hnputs(p, 0x7f65);	/* Connect-Initial tag */
 	p[2] = 0x82;		/* length in next 2 bytes  */
-	PSHORTB(p+3, ndata+MCSCIFIXLEN-2*2-1);
+	hnputs(p+3, ndata+MCSCIFIXLEN-2*2-1);
 	p += 5;
 
 	/* BER callingDomainSelector */
@@ -247,7 +247,7 @@ mkmcsci(uchar* buf, int nbuf, int ndata)
 	/* BER userData */
 	p[0] = TagOctetString;
 	p[1] = 0x82;			/* length in next 2 bytes  */
-	PSHORTB(p+2, ndata);
+	hnputs(p+2, ndata);
 	/* userData should follow */
 
 	return MCSCIFIXLEN+ndata;
@@ -303,67 +303,67 @@ putgccr(uchar* buf, uint nb, Msg* m)
 	memcpy(p, t124IdentifierKeyOid, 7);
 
 	// connectPDU as a PER octet string
-	PSHORTB(p+7, (gccsize | 0x8000));	// connectPDU length
-	PSHORTB(p+9, 8);		// ConferenceCreateRequest
-	PSHORTB(p+11, 16);
+	hnputs(p+7, (gccsize | 0x8000));	// connectPDU length
+	hnputs(p+9, 8);		// ConferenceCreateRequest
+	hnputs(p+11, 16);
 	p[13] = 0;
-	PSHORT(p+14, 0xC001);	// userData key: h221NonStandard
+	iputs(p+14, 0xC001);	// userData key: h221NonStandard
 	p[16] = 0;
 	memcpy(p+17, "Duca", 4);	// H.221 nonstandard key (3.2.5.3.3)
-	PSHORTB(p+21, ((gccsize-14) | 0x8000));		// userData length
+	hnputs(p+21, ((gccsize-14) | 0x8000));		// userData length
 	p += 23;
 
 	// 2.2.1.3.2 Client Core Data
-	PSHORT(p+0, ClientCore);
-	PSHORT(p+2, 216);	// length of the data block
-	PLONG(p+4, ver);	// rdpVersion: RDP5=0x00080004
-	PSHORT(p+8, width);	// desktopWidth ≤ 4096
-	PSHORT(p+10, height);	// desktopHeight ≤ 2048
-	PSHORT(p+12, 0xCA01);	// colorDepth=8bpp, ignored
-	PSHORT(p+14, 0xAA03);	// SASSequence
-	PLONG(p+16, 0x409);	// keyboardLayout=us
-	PLONG(p+20, 2600); 	// clientBuild
+	iputs(p+0, ClientCore);
+	iputs(p+2, 216);	// length of the data block
+	iputl(p+4, ver);	// rdpVersion: RDP5=0x00080004
+	iputs(p+8, width);	// desktopWidth ≤ 4096
+	iputs(p+10, height);	// desktopHeight ≤ 2048
+	iputs(p+12, 0xCA01);	// colorDepth=8bpp, ignored
+	iputs(p+14, 0xAA03);	// SASSequence
+	iputl(p+16, 0x409);	// keyboardLayout=us
+	iputl(p+20, 2600); 	// clientBuild
 	memset(p+24, 32, 0);	// clientName[32]
 	toutf16(p+24, 32, sysname, strlen(sysname)+1);
-	PSHORT(p+54, 0);		// zero-terminateclientName
-	PLONG(p+56, 4);	// keyboardType: 4="IBM enhanced (101-key or 102-key)"
-	PLONG(p+60, 0);	// keyboardSubType
-	PLONG(p+64, 12);	// keyboardFunctionKey
+	iputs(p+54, 0);		// zero-terminateclientName
+	iputl(p+56, 4);	// keyboardType: 4="IBM enhanced (101-key or 102-key)"
+	iputl(p+60, 0);	// keyboardSubType
+	iputl(p+64, 12);	// keyboardFunctionKey
 	memset(p+68, 64, 0);	// imeFileName[64]
-	PSHORT(p+132, 0xCA01);	// postBeta2ColorDepth=8bpp, ignored
-	PSHORT(p+134, 1);	// clientProductId
-	PLONG(p+136, 0);	// serialNumber
-	PSHORT(p+140, MIN(depth, 24));	// highColorDepth: 4, 8, 15, 16, 24 bpp.
-	PSHORT(p+142, 1+2+4+8);	// supportedColorDepths: 1=24, 2=16, 4=15, 8=32 bpp
-	PSHORT(p+144, earlyCapabilityFlags);	// earlyCapabilityFlags 
+	iputs(p+132, 0xCA01);	// postBeta2ColorDepth=8bpp, ignored
+	iputs(p+134, 1);	// clientProductId
+	iputl(p+136, 0);	// serialNumber
+	iputs(p+140, MIN(depth, 24));	// highColorDepth: 4, 8, 15, 16, 24 bpp.
+	iputs(p+142, 1+2+4+8);	// supportedColorDepths: 1=24, 2=16, 4=15, 8=32 bpp
+	iputs(p+144, earlyCapabilityFlags);	// earlyCapabilityFlags 
 	memset(p+146, 64, 0);	// clientDigProductId[64]
 	p[210] = 7;	// connectionType: 7=autodetect
 	p[211] = 0;	// pad1octet
-	PLONG(p+212, sproto);	// serverSelectedProtocol
+	iputl(p+212, sproto);	// serverSelectedProtocol
 	p += 216;
 	
 	// 2.2.1.3.3 Client Security Data
-	PSHORT(p+0, ClientSec);
-	PSHORT(p+2, 12);	// length of the data block
-	PLONG(p+4, 0); 	// (legacy) encryptionMethods
-	PLONG(p+8, 0); 	// extEncryptionMethods
+	iputs(p+0, ClientSec);
+	iputs(p+2, 12);	// length of the data block
+	iputl(p+4, 0); 	// (legacy) encryptionMethods
+	iputl(p+8, 0); 	// extEncryptionMethods
 	p += 12;
 
 	// 2.2.1.3.5 Client Cluster Data		*optional*
-	PSHORT(p+0, ClientCluster);
-	PSHORT(p+2, 12);	// length of the data block
-	PLONG(p+4, (wantconsole? 11 : 9));	// Flags
-	PLONG(p+8, 0);		// RedirectedSessionID
+	iputs(p+0, ClientCluster);
+	iputs(p+2, 12);	// length of the data block
+	iputl(p+4, (wantconsole? 11 : 9));	// Flags
+	iputl(p+8, 0);		// RedirectedSessionID
 	p += 12;
 
 	// 2.2.1.3.4 Client Network Data 	*optional*
 	// type[2] len[2] nchan[4] nchan*(name[8] options[4])
-	PSHORT(p+0, ClientNet);
-	PSHORT(p+2, 8+12*nv);
-	PLONG(p+4, nv);
+	iputs(p+0, ClientNet);
+	iputs(p+2, 8+12*nv);
+	iputl(p+4, nv);
 	for(i=0; i<nv; i++){
 		memcpy(p+8+12*i+0, v[i].name, 8);
-		PLONGB(p+8+12*i+8, v[i].flags);
+		hnputl(p+8+12*i+8, v[i].flags);
 	}
 	p += 8+12*nv;
 
@@ -421,11 +421,11 @@ getmcr(Msg* m, uchar* b, uint nb)
 
 	while(p<ep){
 		/* 2.2.1.3.1 User Data Header (TS_UD_HEADER) */
-		utype = GSHORT(p+0);
-		ulen = GSHORT(p+2);
+		utype = igets(p+0);
+		ulen = igets(p+2);
 		switch(utype){
 		case SrvCore:		/* 2.2.1.4.2 Server Core Data */
-			m->ver = GLONG(p+4);
+			m->ver = igetl(p+4);
 			break;
 		/* BUG: exract channel IDs from SrvNet */
 		}
@@ -445,9 +445,9 @@ putmsdr(uchar* p, int nb, int ndata, int chanid, int mcsuid)
 	}
 	
 	p[0] = (Msdr<<2);
-	PSHORTB(p+1, mcsuid);
-	PSHORTB(p+3, chanid);
+	hnputs(p+1, mcsuid);
+	hnputs(p+3, chanid);
 	p[5] = 0x70;
-	PSHORTB(p+6, ndata|0x8000);
+	hnputs(p+6, ndata|0x8000);
 	return 8;
 }

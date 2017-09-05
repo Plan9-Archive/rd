@@ -58,11 +58,11 @@ getcaps(Caps* caps, uchar* a, uint nb)
 	ep = p+nb;
 	memset(caps, sizeof(*caps), 0);
 
-	ncap = GSHORT(p);
+	ncap = igets(p);
 	p += 4;
 	for(; ncap>0 && p+4<ep; ncap--){
-		type = GSHORT(p+0);
-		len = GSHORT(p+2);
+		type = igets(p+0);
+		len = igets(p+2);
 		if(p+len > ep){
 			werrstr("bad length in server's capability set");
 			return -1;
@@ -75,7 +75,7 @@ getcaps(Caps* caps, uchar* a, uint nb)
 				return -1;
 			}
 			caps->general = 1;
-			extraFlags  = GSHORT(p+14);
+			extraFlags  = igets(p+14);
 			caps->canrefresh = p[22];
 			caps->cansupress = p[23];
 			USED(extraFlags);
@@ -87,9 +87,9 @@ getcaps(Caps* caps, uchar* a, uint nb)
 				return -1;
 			}
 			caps->bitmap = 1;
-			caps->depth = GSHORT(p+4);
-			caps->xsz = GSHORT(p+12);
-			caps->ysz = GSHORT(p+14);
+			caps->depth = igets(p+4);
+			caps->xsz = igets(p+12);
+			caps->ysz = igets(p+14);
 			break;
 		}
 		p += len;
@@ -139,8 +139,8 @@ putncap(uchar *p, uint nb, Caps* caps)
 		werrstr(Eshort);
 		return -1;
 	}
-	PSHORT(p, ncap);
-	PSHORT(p+2, 0);
+	iputs(p, ncap);
+	iputs(p+2, 0);
 	return 4;
 }
 
@@ -160,16 +160,16 @@ putgencaps(uchar *p, uint nb, Caps* caps)
 		werrstr(Eshort);
 		return -1;
 	}
-	PSHORT(p+0, CapGeneral);
-	PSHORT(p+2, 24);	// size
-	PSHORT(p+4, 0);	// OSMAJORTYPE_UNSPECIFIED
-	PSHORT(p+6, 0);	// OSMINORTYPE_UNSPECIFIED
-	PSHORT(p+8, 0x200);	// TS_CAPS_PROTOCOLVERSION
-	PSHORT(p+12, 0);	// generalCompressionTypes
-	PSHORT(p+14, extraFlags);
-	PSHORT(p+16, 0);	// updateCapabilityFlag
-	PSHORT(p+18, 0);	// remoteUnshareFlag 
-	PSHORT(p+20, 0);	// generalCompressionLevel
+	iputs(p+0, CapGeneral);
+	iputs(p+2, 24);	// size
+	iputs(p+4, 0);	// OSMAJORTYPE_UNSPECIFIED
+	iputs(p+6, 0);	// OSMINORTYPE_UNSPECIFIED
+	iputs(p+8, 0x200);	// TS_CAPS_PROTOCOLVERSION
+	iputs(p+12, 0);	// generalCompressionTypes
+	iputs(p+14, extraFlags);
+	iputs(p+16, 0);	// updateCapabilityFlag
+	iputs(p+18, 0);	// remoteUnshareFlag 
+	iputs(p+20, 0);	// generalCompressionLevel
 	p[22] = 0;  	// refreshRectSupport - server only
 	p[23] = 0;  	// suppressOutputSupport - server only
 	return 24;
@@ -184,21 +184,21 @@ putbitcaps(uchar *p, uint nb, Caps* caps)
 		werrstr(Eshort);
 		return -1;
 	}
-	PSHORT(p+0, CapBitmap);
-	PSHORT(p+2, 30);	// size
-	PSHORT(p+4, caps->depth);	// preferredBitsPerPixel
-	PSHORT(p+6, 1);	// receive1BitPerPixel
-	PSHORT(p+8, 1);	// receive4BitsPerPixel
-	PSHORT(p+10, 1);	// receive8BitsPerPixel
-	PSHORT(p+12, caps->xsz);	// desktopWidth
-	PSHORT(p+14, caps->ysz);	// desktopHeight
-	PSHORT(p+16, 0);	// pad2octets 
-	PSHORT(p+18, 1);	// desktopResizeFlag 
-	PSHORT(p+20, 1);	// bitmapCompressionFlag 
-	PSHORT(p+22, 0);	// highColorFlags 
-	PSHORT(p+24, 1);	// drawingFlags 
-	PSHORT(p+26, 1);	// multipleRectangleSupport
-	PSHORT(p+26, 0);	// pad2octetsB
+	iputs(p+0, CapBitmap);
+	iputs(p+2, 30);	// size
+	iputs(p+4, caps->depth);	// preferredBitsPerPixel
+	iputs(p+6, 1);	// receive1BitPerPixel
+	iputs(p+8, 1);	// receive4BitsPerPixel
+	iputs(p+10, 1);	// receive8BitsPerPixel
+	iputs(p+12, caps->xsz);	// desktopWidth
+	iputs(p+14, caps->ysz);	// desktopHeight
+	iputs(p+16, 0);	// pad2octets 
+	iputs(p+18, 1);	// desktopResizeFlag 
+	iputs(p+20, 1);	// bitmapCompressionFlag 
+	iputs(p+22, 0);	// highColorFlags 
+	iputs(p+24, 1);	// drawingFlags 
+	iputs(p+26, 1);	// multipleRectangleSupport
+	iputs(p+26, 0);	// pad2octetsB
 	return 30;
 }
 
@@ -226,25 +226,25 @@ putordcaps(uchar *p, uint nb, Caps* caps)
 		werrstr(Eshort);
 		return -1;
 	}
-	PSHORT(p+0, CapOrder);
-	PSHORT(p+2, 88);	// size
+	iputs(p+0, CapOrder);
+	iputs(p+2, 88);	// size
 	memset(p+4, 16, 0);	// terminalDescriptor
-	PLONG(p+20, 0);	// pad4octetsA 
-	PSHORT(p+24, 1);	// desktopSaveXGranularity 
-	PSHORT(p+26, 20);	// desktopSaveYGranularity 
-	PSHORT(p+28, 0);	// pad2octetsA
-	PSHORT(p+30, 1);	// maximumOrderLevel 
-	PSHORT(p+32, 0);	// numberFonts 
-	PSHORT(p+34, orderFlags);
+	iputl(p+20, 0);	// pad4octetsA 
+	iputs(p+24, 1);	// desktopSaveXGranularity 
+	iputs(p+26, 20);	// desktopSaveYGranularity 
+	iputs(p+28, 0);	// pad2octetsA
+	iputs(p+30, 1);	// maximumOrderLevel 
+	iputs(p+32, 0);	// numberFonts 
+	iputs(p+34, orderFlags);
 	memcpy(p+36, orderSupport, 32);
-	PSHORT(p+68, 0x6a1);	// textFlags
-	PSHORT(p+70, 0);	// orderSupportExFlags
-	PLONG(p+72, 0);	// pad4octetsB
-	PLONG(p+76, 480*480);	// desktopSaveSize
-	PSHORT(p+80, 0);	// pad2octetsC
-	PSHORT(p+82, 0);	// pad2octetsD
-	PSHORT(p+84, 0xe4);	// textANSICodePage
-	PSHORT(p+86, 0x04);	// pad2octetsE
+	iputs(p+68, 0x6a1);	// textFlags
+	iputs(p+70, 0);	// orderSupportExFlags
+	iputl(p+72, 0);	// pad4octetsB
+	iputl(p+76, 480*480);	// desktopSaveSize
+	iputs(p+80, 0);	// pad2octetsC
+	iputs(p+82, 0);	// pad2octetsD
+	iputs(p+84, 0xe4);	// textANSICodePage
+	iputs(p+86, 0x04);	// pad2octetsE
 	return 88;
 }
 
@@ -258,16 +258,16 @@ putbc2caps(uchar *p, uint nb, Caps* caps)
 		werrstr(Eshort);
 		return -1;
 	}
-	PSHORT(p+0, CapBitcache2);
-	PSHORT(p+2, 40);	// size
-	PSHORT(p+4, 0);	// CacheFlags (2 bytes):  
+	iputs(p+0, CapBitcache2);
+	iputs(p+2, 40);	// size
+	iputs(p+4, 0);	// CacheFlags (2 bytes):  
 	p[6] = 0;	// pad2
 	p[7] = 3;	// NumCellCaches
-	PLONG(p+8, 120);	// BitmapCache0CellInfo
-	PLONG(p+12, 120);	// BitmapCache1CellInfo
-	PLONG(p+16, 336);	// BitmapCache2CellInfo
-	PLONG(p+20, 0);	// BitmapCache3CellInfo
-	PLONG(p+24, 0);	// BitmapCache4CellInfo
+	iputl(p+8, 120);	// BitmapCache0CellInfo
+	iputl(p+12, 120);	// BitmapCache1CellInfo
+	iputl(p+16, 336);	// BitmapCache2CellInfo
+	iputl(p+20, 0);	// BitmapCache3CellInfo
+	iputl(p+24, 0);	// BitmapCache4CellInfo
 	memset(p+28, 12, 0); // Pad3
 	return 40;
 }
@@ -281,10 +281,10 @@ putptrcaps(uchar *p, uint nb, Caps* caps)
 		werrstr(Eshort);
 		return -1;
 	}
-	PSHORT(p+0, CapPointer);
-	PSHORT(p+2, 8);	// size
-	PSHORT(p+4, 0);	// colorPointerFlag  
-	PSHORT(p+6, 20);	// colorPointerCacheSize 
+	iputs(p+0, CapPointer);
+	iputs(p+2, 8);	// size
+	iputs(p+4, 0);	// colorPointerFlag  
+	iputs(p+6, 20);	// colorPointerCacheSize 
 	return 8;
 }
 
@@ -311,16 +311,16 @@ putinpcaps(uchar *p, uint nb, Caps* caps)
 		werrstr(Eshort);
 		return -1;
 	}
-	PSHORT(p+0, CapInput);
-	PSHORT(p+2, 88);	// size
-	PSHORT(p+4, inputFlags);	// inputFlags
-	PSHORT(p+6, 0);	// pad2octetsA
+	iputs(p+0, CapInput);
+	iputs(p+2, 88);	// size
+	iputs(p+4, inputFlags);	// inputFlags
+	iputs(p+6, 0);	// pad2octetsA
 
 	// the below SHOULD be the same as in the Client Core Data (section 2.2.1.3.2).
-	PLONG(p+8, 0x409);	// keyboardLayout
-	PLONG(p+12, 4);	// keyboardType: IBM enhanced (101- or 102-key)
-	PLONG(p+16, 0);	// keyboardSubType
-	PLONG(p+20, 12);	// keyboardFunctionKey
+	iputl(p+8, 0x409);	// keyboardLayout
+	iputl(p+12, 4);	// keyboardType: IBM enhanced (101- or 102-key)
+	iputl(p+16, 0);	// keyboardSubType
+	iputl(p+20, 12);	// keyboardFunctionKey
 	memset(p+24, 64, 0);	// imeFileName
 	return 88;
 }
@@ -338,21 +338,21 @@ putglycaps(uchar *p, uint nb, Caps* caps)
 		werrstr(Eshort);
 		return -1;
 	}
-	PSHORT(p+0, CapGlyph);
-	PSHORT(p+2, 52);	// size
-	PLONG(p+4, 0x0400fe);	// GlyphCache 0
-	PLONG(p+8, 0x0400fe);	// GlyphCache 1
-	PLONG(p+12, 0x0800fe);	// GlyphCache 2
-	PLONG(p+16, 0x0800fe);	// GlyphCache 3
-	PLONG(p+20, 0x1000fe);	// GlyphCache 4
-	PLONG(p+24, 0x2000fe);	// GlyphCache 5
-	PLONG(p+28, 0x4000fe);	// GlyphCache 6
-	PLONG(p+32, 0x8000fe);	// GlyphCache 7
-	PLONG(p+36, 0x10000fe);	// GlyphCache 8
-	PLONG(p+40, 0x8000040);	// GlyphCache 9
-	PLONG(p+44, 0x01000100);	// FragCache 
-	PSHORT(p+48, GLYPH_SUPPORT_NONE);	// GlyphSupportLevel
-	PSHORT(p+50, 0);	// pad2octets 
+	iputs(p+0, CapGlyph);
+	iputs(p+2, 52);	// size
+	iputl(p+4, 0x0400fe);	// GlyphCache 0
+	iputl(p+8, 0x0400fe);	// GlyphCache 1
+	iputl(p+12, 0x0800fe);	// GlyphCache 2
+	iputl(p+16, 0x0800fe);	// GlyphCache 3
+	iputl(p+20, 0x1000fe);	// GlyphCache 4
+	iputl(p+24, 0x2000fe);	// GlyphCache 5
+	iputl(p+28, 0x4000fe);	// GlyphCache 6
+	iputl(p+32, 0x8000fe);	// GlyphCache 7
+	iputl(p+36, 0x10000fe);	// GlyphCache 8
+	iputl(p+40, 0x8000040);	// GlyphCache 9
+	iputl(p+44, 0x01000100);	// FragCache 
+	iputs(p+48, GLYPH_SUPPORT_NONE);	// GlyphSupportLevel
+	iputs(p+50, 0);	// pad2octets 
 	return 52;
 }
 
@@ -365,9 +365,9 @@ putsndcaps(uchar *p, uint nb, Caps* caps)
 		werrstr(Eshort);
 		return -1;
 	}
-	PSHORT(p+0, CapSound);
-	PSHORT(p+2, 8);	// size
-	PSHORT(p+4, 0);	// soundFlags
-	PSHORT(p+6, 0);	// pad2octetsA
+	iputs(p+0, CapSound);
+	iputs(p+2, 8);	// size
+	iputs(p+4, 0);	// soundFlags
+	iputs(p+6, 0);	// pad2octetsA
 	return 8;
 }

@@ -83,16 +83,16 @@ getaudiomsg(Audiomsg* m, uchar* a, int nb)
 	}
 	
 	m->type = *a;
-	len = GSHORT(a+2);
+	len = igets(a+2);
 	switch(m->type){
 	case Afmt:
 		if(len < 20 || nb < len+4){
 			werrstr(Eshort);
 			return -1;
 		}
-		m->nfmt = GSHORT(a+18);
+		m->nfmt = igets(a+18);
 		m->ack = a[20];
-		m->ver = GSHORT(a+21);
+		m->ver = igets(a+21);
 		m->data = a+24;
 		m->ndata = len-20;
 		return len+4;

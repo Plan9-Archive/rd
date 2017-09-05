@@ -139,10 +139,10 @@ getfupd(Imgupd* up, uchar* a, uint nb)
 	if(ctl&Secondary){
 		if(p+6>ep)
 			sysfatal("draworders: %s", Eshort);
-		size = ((short)GSHORT(p+1))+13;
+		size = ((short)igets(p+1))+13;
 		if(size < 0 || p+size > ep)
 			sysfatal("draworders: size: %s", Eshort);
-		opt = GSHORT(p+3);
+		opt = igets(p+3);
 		xorder = p[5];
 		if(xorder >= nelem(auxtab) || auxtab[xorder].get == nil){
 			fprint(2, "egdi: unsupported secondary order %d\n", xorder);
@@ -168,7 +168,7 @@ getfupd(Imgupd* up, uchar* a, uint nb)
 		fset = p[0]|(p[1]<<8)|(p[2]<<16);
 		break;
 	case 2:
-		fset = GSHORT(p);
+		fset = igets(p);
 		break;
 	case 1:
 		fset = p[0];
@@ -223,11 +223,11 @@ cfpt(Point* p, uchar* a, int nb, int isdelta, int fset)
 			p->y += (signed char)*a;
 	}else{
 		if(fset&1<<0){
-			p->x = GSHORT(a);
+			p->x = igets(a);
 			a += 2;
 		};
 		if(fset&1<<1)
-			p->y = GSHORT(a);
+			p->y = igets(a);
 	}
 	return n;
 }
@@ -256,25 +256,25 @@ cfclipr(Rectangle* pr, uchar* a, int nb)
 	if(bctl&1<<4)
 		pr->min.x += (char)*p++;
 	else if(bctl&1<<0){
-		pr->min.x = GSHORT(p);
+		pr->min.x = igets(p);
 		p += 2;
 	}
 	if(bctl&1<<5)
 		pr->min.y += (char)*p++;
 	else if(bctl&1<<1){
-		pr->min.y = GSHORT(p);
+		pr->min.y = igets(p);
 		p += 2;
 	}
 	if(bctl&1<<6)
 		pr->max.x += (char)*p++;
 	else if(bctl&1<<2){
-		pr->max.x = GSHORT(p)+1;
+		pr->max.x = igets(p)+1;
 		p += 2;
 	}
 	if(bctl&1<<7)
 		pr->max.y += (char)*p++;
 	else if(bctl&1<<3){
-		pr->max.y = GSHORT(p)+1;
+		pr->max.y = igets(p)+1;
 		p += 2;
 	}
 	if(p>ep)
@@ -341,7 +341,7 @@ DBG	fprint(2, "getmemblt...");
 	ep = a+nb;
 
 	if(fset&1<<0){
-		cid = GSHORT(p);
+		cid = igets(p);
 		p += 2;
 	}
 	n = cfrect(&r, p, ep-p, ctl&Diff, fset>>1);
@@ -351,7 +351,7 @@ DBG	fprint(2, "getmemblt...");
 	n = cfpt(&pt, p, ep-p, ctl&Diff, fset>>6);
 	p += n;
 	if(fset&1<<8){
-		coff = GSHORT(p);
+		coff = igets(p);
 		p += 2;
 	}
 	if(p>ep)
@@ -461,7 +461,7 @@ DBG	fprint(2, "getcmapcache...");
 	USED(opt);
 	
 	cid = a[6];
-	n = GSHORT(a+7);
+	n = igets(a+7);
 	if(n != 256)
 		sysfatal("cachecmap: %d != 256", n);
 	if(9+4*256 > nb)

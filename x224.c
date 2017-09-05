@@ -60,7 +60,7 @@ readpdu(int fd, uchar *buf, uint nbuf)
 		break;
 	default:
 		/* TPKT-encapsulated TPDU */
-		len = GSHORTB(p+2);
+		len = nhgets(p+2);
 	}
 	
 	if(len <= n || len > nbuf){
@@ -111,13 +111,13 @@ mktpcr(uchar* buf, int nbuf, int ndata)
 	/* TPKT header: version[1] unused[1] len[2] */
 	p[0] = 0x03;
 	p[1] = 0;
-	PSHORTB(p+2, size);
+	hnputs(p+2, size);
 
 	/* ConReq: hdlen[1] type[1] dstref[2] srcref[2] class[1] */
 	p[4+0] = 7-1+ndata;
 	p[4+1] = ConReq;
-	PSHORTB(p+4+2, 0);
-	PSHORTB(p+4+4, 0);
+	hnputs(p+4+2, 0);
+	hnputs(p+4+4, 0);
 	p[4+6] = 0;
 
 	return size;
@@ -140,7 +140,7 @@ mktpdat(uchar* buf, int nbuf, int ndata)
 	/* TPKT header: version[1] unused[1] len[2] */
 	p[0] = 0x03;
 	p[1] = 0;
-	PSHORTB(p+2, size);
+	hnputs(p+2, size);
 
 	/* TPDU: hdlen[1] type[1] seqno[1] */
 	p[4] = 2;
@@ -167,7 +167,7 @@ mktpdr(uchar* buf, int nbuf, int ndata)
 	/* TPKT header: version[1] unused[1] len[2] */
 	p[0] = 0x03;
 	p[1] = 0;
-	PSHORTB(p+2, size);
+	hnputs(p+2, size);
 
 	/* HupReq: hdlen[1] type[1] seqno[1] */
 	p[4] = 2;

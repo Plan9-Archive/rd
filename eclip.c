@@ -182,8 +182,8 @@ clipputmsg(uchar *a, int n, Clipmsg *m)
 		werrstr(Esmall);
 		return -1;
 	}
-	PSHORT(a+0, m->type);
-	PSHORT(a+2, m->flags);
+	iputs(a+0, m->type);
+	iputs(a+2, m->flags);
 	switch(m->type){
 	case Cannounce:
 		m->data = a+8;
@@ -192,7 +192,7 @@ clipputmsg(uchar *a, int n, Clipmsg *m)
 			werrstr(Esmall);
 			return -1;
 		}
-		PLONG(a+8, m->fmtid);
+		iputl(a+8, m->fmtid);
 		memset(a+12, 0, 32);	/* fmt name - who cares? */
 		break;
 	case Crq:
@@ -202,7 +202,7 @@ clipputmsg(uchar *a, int n, Clipmsg *m)
 			werrstr(Esmall);
 			return -1;
 		}
-		PLONG(a+8, m->fmtid);
+		iputl(a+8, m->fmtid);
 		break;
 	case Cnoted:
 		m->ndata = 0;
@@ -213,7 +213,7 @@ clipputmsg(uchar *a, int n, Clipmsg *m)
 		werrstr(Esmall);
 		return -1;
 	}
-	PLONG(a+4, m->ndata);
+	iputl(a+4, m->ndata);
 	memcpy(a+8, m->data, m->ndata);
 	return 8+m->ndata;
 }
@@ -228,9 +228,9 @@ clipgetmsg(Clipmsg *m, uchar *p, int n)
 		werrstr(Eshort);
 		return -1;
 	}
-	m->type = GSHORT(p);
-	m->flags = GSHORT(p+2);
-	len = GLONG(p+4);
+	m->type = igets(p);
+	m->flags = igets(p+2);
+	len = igetl(p+4);
 	if(8+len > n){
 		werrstr(Eshort);
 		return -1;
@@ -244,14 +244,14 @@ clipgetmsg(Clipmsg *m, uchar *p, int n)
 			werrstr(Eshort);
 			return -1;
 		}
-		m->fmtid = GLONG(m->data);
+		m->fmtid = igetl(m->data);
 		break;
 	case Cannounce:
 		m->fmtid = 0;
 		p += 8;
 		ep = p+len;
 		while(p < ep){
-			m->fmtid = GLONG(p);
+			m->fmtid = igetl(p);
 			if(m->fmtid == FmtUnicode)
 				break;
 			p += 4+32*1;

@@ -104,8 +104,8 @@ unrle(uchar* d, int nd, uchar* s, int ns, int bpl, int pixelsize)
 	we = d+nd;
 	wasbg = 0;
 	wasline1 = 1;
-	PLONG(pen, DWhite);
-	PLONG(wpen, DWhite);
+	iputl(pen, DWhite);
+	iputl(wpen, DWhite);
 
 	while(p < ep){
 		hdr = *p++;
@@ -129,7 +129,7 @@ unrle(uchar* d, int nd, uchar* s, int ns, int bpl, int pixelsize)
 		}else{
 			code = hdr&Bits4;
 			if(code < 9){
-				len = GSHORT(p);
+				len = igets(p);
 				p += 2;
 			}else
 				len = 0;

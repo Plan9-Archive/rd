@@ -42,11 +42,11 @@ loadbmp(Image *i, Rectangle r, uchar *data, int ndata, uchar *cmap)
 			return -1;
 		}
 		a[0] = 'y';
-		BPLONG(a+1, i->id);
-		BPLONG(a+5, r.min.x);
-		BPLONG(a+9, r.max.y-1);
-		BPLONG(a+13, r.max.x);
-		BPLONG(a+17, r.max.y);
+		iputl(a+1, i->id);
+		iputl(a+5, r.min.x);
+		iputl(a+9, r.max.y-1);
+		iputl(a+13, r.max.x);
+		iputl(a+17, r.max.y);
 		memmove(a+21, data, n);
 		ndata += n;
 		data += n;
@@ -95,7 +95,7 @@ loadcmap(Rdp* c, Share* as)
 	ep = as->data + as->ndata;
 	cmap = c->cmap;
 
-	n = GSHORT(p+4);
+	n = igets(p+4);
 	p += 8;
 	if(n > sizeof(c->cmap)){
 		fprint(2, "loadcmap: data too big");

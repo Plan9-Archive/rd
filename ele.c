@@ -111,24 +111,24 @@ putlicensemsg(uchar* buf, uint nb, Msg* m)
 		 */
 		p[0] = CNeedLicense;
 		p[1] = PreambleV3;
-		PSHORT(p+2, ndata);
-		PLONG(p+4, KeyExRSA);
-		PLONG(p+8, 0);
+		iputs(p+2, ndata);
+		iputl(p+4, KeyExRSA);
+		iputl(p+8, 0);
 		memset(p+12, RandomSize, 0);
 		p += 12+RandomSize;
 	
-		PSHORT(p+0, Brandom);
-		PSHORT(p+2, 48);
+		iputs(p+0, Brandom);
+		iputs(p+2, 48);
 		memset(p+4, 48, 0);
 		p += 4+48;
 
-		PSHORT(p+0, Bcuser);
-		PSHORT(p+2, usersize);
+		iputs(p+0, Bcuser);
+		iputs(p+2, usersize);
 		memcpy(p+4, m->user, usersize);
 		p+= 4+usersize;
 	
-		PSHORT(p+0, Bchost);
-		PSHORT(p+2, hostsize);
+		iputs(p+0, Bchost);
+		iputs(p+2, hostsize);
 		memcpy(p+4, m->sysname, hostsize);
 		p+= 4+hostsize;
 		break;
@@ -140,11 +140,11 @@ putlicensemsg(uchar* buf, uint nb, Msg* m)
 		/* type[1] flags[1] size[2] errcode[4] newstate[4] blob.type[2] blob.len[2] ... */
 		p[0] = Notify;
 		p[1] = PreambleV3;
-		PSHORT(p+2, ndata);
-		PLONG(p+4, errcode);
-		PLONG(p+8, newstate);
-		PSHORT(p+12, Berror);
-		PSHORT(p+14, 0);
+		iputs(p+2, ndata);
+		iputl(p+4, errcode);
+		iputl(p+8, newstate);
+		iputs(p+12, Berror);
+		iputs(p+14, 0);
 		break;
 	}
 	assert(p == ep);

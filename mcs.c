@@ -299,6 +299,8 @@ putgccr(uchar* buf, uint nb, Msg* m)
 	earlyCapabilityFlags = CanErrinfo;
 	if(depth == 32)
 		earlyCapabilityFlags |= Want32bpp;
+	if(depth > 24)
+		depth = 24;
 
 	memcpy(p, t124IdentifierKeyOid, 7);
 
@@ -333,7 +335,7 @@ putgccr(uchar* buf, uint nb, Msg* m)
 	iputs(p+132, 0xCA01);	// postBeta2ColorDepth=8bpp, ignored
 	iputs(p+134, 1);	// clientProductId
 	iputl(p+136, 0);	// serialNumber
-	iputs(p+140, MIN(depth, 24));	// highColorDepth: 4, 8, 15, 16, 24 bpp.
+	iputs(p+140, depth);	// highColorDepth: 4, 8, 15, 16, 24 bpp.
 	iputs(p+142, 1+2+4+8);	// supportedColorDepths: 1=24, 2=16, 4=15, 8=32 bpp
 	iputs(p+144, earlyCapabilityFlags);	// earlyCapabilityFlags 
 	memset(p+146, 64, 0);	// clientDigProductId[64]

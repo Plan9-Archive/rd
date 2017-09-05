@@ -5,8 +5,6 @@ typedef	struct	Share Share;
 typedef	struct	Caps Caps;
 typedef	struct	Imgupd Imgupd;
 
-#define	MIN(x,y)		(((x) < (y)) ? (x) : (y))
-
 enum
 {
 	MAXTPDU=	16386,	/* max TPDU size */

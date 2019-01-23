@@ -1,5 +1,5 @@
 #include <u.h>
-#include <fns.h>
+#include "fns.h"
 
 short
 igets(uchar* p)

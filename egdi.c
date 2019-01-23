@@ -8,8 +8,6 @@
 #include "dat.h"
 #include "fns.h"
 
-#define	DBG	if(0)
-
 enum
 {
 	Bits2=	3,
@@ -293,7 +291,6 @@ getscrblt(Imgupd* up, uchar* a, uint nb, int ctl, int fset)
 	static	Point wp;
 	static	int rop3;
 
-DBG	fprint(2, "getscrblt...");
 	p = a;
 	ep = a+nb;
 
@@ -335,7 +332,6 @@ getmemblt(Imgupd* up, uchar* a, uint nb, int ctl, int fset)
 	static Point pt;
 	int n;
 	uchar *p, *ep;
-DBG	fprint(2, "getmemblt...");
 
 	p = a;
 	ep = a+nb;
@@ -392,7 +388,6 @@ getimgcache2(Imgupd* up, uchar* a, uint nb, int xorder, int opt)
 	int n, g;
 	int size;
 
-DBG	fprint(2, "getimgcache2...");
 	p = a;
 	ep = a+nb;
 
@@ -456,7 +451,6 @@ static int
 getcmapcache(Imgupd* up, uchar* a, uint nb, int xorder, int opt)
 {
 	int cid, n;
-DBG	fprint(2, "getcmapcache...");
 	USED(xorder);
 	USED(opt);
 	

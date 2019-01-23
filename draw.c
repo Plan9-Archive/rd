@@ -102,7 +102,7 @@ imgupd(Rdp* c, Imgupd* up)
 		sysfatal("bad image depth");
 
 	loadfn = loadbmp;
-	if(up->iscompr)
+	if(up->compressed)
 		loadfn = loadrle;
 
 	r = rectaddpt(Rect(up->x, up->y, up->x+up->xsz, up->y+up->ysz), screen->r.min);
@@ -143,7 +143,7 @@ memblt(Rdp* c, Imgupd* up)
 		return;
 	}
 
-	if(up->clipped){
+	if(up->clip){
 		clipr = Rect(up->cx, up->cy, up->cx+up->cxsz, up->cy+up->cysz);
 		replclipr(screen, screen->repl, rectaddpt(clipr, screen->r.min));
 	}
@@ -153,12 +153,12 @@ memblt(Rdp* c, Imgupd* up)
 	pt = Pt(up->sx, up->sy);
 	draw(screen, r, img, nil, pt);
 
-	if(up->clipped)
+	if(up->clip)
 		replclipr(screen, screen->repl, screen->r);
 }
 
 static void
-cacheimage2(Rdp* c, Imgupd* up)
+cacheimg(Rdp* c, Imgupd* u)
 {
 	int (*loadfn)(Image*,Rectangle,uchar*,int,uchar*);
 	int chan;
@@ -166,25 +166,25 @@ cacheimage2(Rdp* c, Imgupd* up)
 	Rectangle r;
 
 	loadfn = loadbmp;
-	if(up->iscompr)
+	if(u->compressed)
 		loadfn = loadrle;
 
-	r = Rect(0, 0, up->xsz, up->ysz);
+	r = Rect(0, 0, u->xsz, u->ysz);
 
-	if(up->cid >= nelem(icache) || up->coff >= nelem(*icache))
-		sysfatal("cacheimage2: bad cache spec [%d %d]", up->cid, up->coff);
+	if(u->cid >= nelem(icache) || u->coff >= nelem(*icache))
+		sysfatal("cacheimg: bad cache spec [%d %d]", u->cid, u->coff);
 
-	img = icache[up->cid][up->coff];
+	img = icache[u->cid][u->coff];
 	if(img==nil || eqrect(img->r, r)==0){
 		chan = depth2chan(c->depth);
 		freeimage(img);
 		img = allocimage(display, r, chan, 0, DNofill);
 		if(img == nil)
-			sysfatal("cacheimage2: %r");
-		icache[up->cid][up->coff] = img;
+			sysfatal("cacheimg: %r");
+		icache[u->cid][u->coff] = img;
 	}
 
-	if(loadfn(img, r, up->bytes, up->nbytes, c->cmap) < 0)
+	if(loadfn(img, r, u->bytes, u->nbytes, c->cmap) < 0)
 		sysfatal("loadmemimg: %r");
 }
 
@@ -203,7 +203,7 @@ drawupd1(Rdp* c, Imgupd* up)
 	case Ubitmap:	imgupd(c, up); break;
 	case Uscrblt:	scrblt(c, up); break;
 	case Umemblt:	memblt(c, up); break;
-	case Uicache:	cacheimage2(c, up); break;
+	case Ucacheimg:	cacheimg(c, up); break;
 	case Umcache:	cachecmap(c, up); break;
 	}
 }

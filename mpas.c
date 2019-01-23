@@ -306,7 +306,7 @@ getshareT(Share* as, uchar* p, uint nb)
 
 /* 2.2.9.1.1.3.1.2.2 Bitmap Data (TS_BITMAP_DATA) */
 int
-getimgupd(Imgupd* iu, uchar* a, uint nb)
+getimgupd(Imgupd* u, uchar* a, uint nb)
 {
 	uchar *p, *ep, *s;
 	int opt, len;
@@ -317,14 +317,14 @@ getimgupd(Imgupd* iu, uchar* a, uint nb)
 		werrstr(Eshort);
 		return -1;
 	}
-	iu->type = Ubitmap;
-	iu->x = igets(p+0);
-	iu->y = igets(p+2);
-	iu->xm = igets(p+4);
-	iu->ym = igets(p+6);
-	iu->xsz = igets(p+8);
-	iu->ysz = igets(p+10);
-	iu->depth = igets(p+12);
+	u->type = Ubitmap;
+	u->x = igets(p+0);
+	u->y = igets(p+2);
+	u->xm = igets(p+4);
+	u->ym = igets(p+6);
+	u->xsz = igets(p+8);
+	u->ysz = igets(p+10);
+	u->depth = igets(p+12);
 	opt = igets(p+14);
 	len = igets(p+16);
 	p += 18;
@@ -333,11 +333,11 @@ getimgupd(Imgupd* iu, uchar* a, uint nb)
 		werrstr(Eshort);
 		return -1;
 	}
-	iu->iscompr = (opt&Bcompress);
+	u->compressed = (opt&Bcompress);
 	if(opt&Bcompress && !(opt&NoBitcomphdr))
 		p += 8;
-	iu->bytes = p;
-	iu->nbytes = s-p;
+	u->bytes = p;
+	u->nbytes = s-p;
 	return s-a;
 }
 

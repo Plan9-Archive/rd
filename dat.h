@@ -220,7 +220,7 @@ enum /* Imgupd.type */
 	Ubitmap,
 	Uscrblt,
 	Umemblt,
-	Uicache,
+	Ucacheimg,
 	Umcache,
 };
 struct Imgupd
@@ -233,12 +233,12 @@ struct Imgupd
 	int	xsz;
 	int	ysz;
 	int	depth;
-	int	iscompr;
+	int	clip;
+	int	compressed;
 	int	cid;
 	int	coff;
 	int	sx;
 	int	sy;
-	int	clipped;
 	int	cx;
 	int	cy;
 	int	cxsz;

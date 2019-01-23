@@ -23,10 +23,10 @@ enum /* 2.2.2.2.1 Drawing Order (DRAWING_ORDER) */
 };
 enum /* 2.2.2.2.1.1.2 Primary Drawing Order (PRIMARY_DRAWING_ORDER) */
 {
-	Clipped=		1<<2,
+	Clip=		1<<2,
 	NewOrder= 	1<<3,
 	Diff=			1<<4,
-	SameClipping=	1<<5,
+	Lastclipr=	1<<5,
 	ZeroFieldBit0=	1<<6,
 	ZeroFieldBit1=	1<<7,
 };
@@ -117,8 +117,8 @@ static struct GdiContext
 	Rectangle clipr;
 } gc	= {PatBlt};
 
-static	int	cfclipr(Rectangle*,uchar*,int);
-static	int	cfpt(Point*,uchar*,int,int,int);
+static	int	loadclipr(Rectangle*,uchar*,int);
+static	int	loadpt(Point*,uchar*,int,int,int);
 
 int
 getfupd(Imgupd* up, uchar* a, uint nb)
@@ -175,8 +175,8 @@ getfupd(Imgupd* up, uchar* a, uint nb)
 	}
 	p += fsize;
 
-	if(ctl&Clipped && !(ctl&SameClipping))
-		p += cfclipr(&gc.clipr, p, ep-p);
+	if(ctl&Clip && !(ctl&Lastclipr))
+		p += loadclipr(&gc.clipr, p, ep-p);
 
 	if(ordtab[gc.order].get == nil)
 		goto ErrNotsup;
@@ -195,7 +195,7 @@ ErrNotsup:
 }
 
 static int
-cfpt(Point* p, uchar* a, int nb, int isdelta, int fset)
+loadpt(Point* p, uchar* a, int nb, int isdelta, int fset)
 {
 	int n;
 
@@ -212,7 +212,7 @@ cfpt(Point* p, uchar* a, int nb, int isdelta, int fset)
 			n += 2;
 	}
 	if(n>nb)
-		sysfatal("cfpt: %s", Eshort);
+		sysfatal("loadpt: %s", Eshort);
 
 	if(isdelta){
 		if(fset&1<<0)
@@ -231,18 +231,18 @@ cfpt(Point* p, uchar* a, int nb, int isdelta, int fset)
 }
 
 static int
-cfrect(Rectangle* pr, uchar* p, int nb, int isdelta, int fset){
+loadrect(Rectangle* pr, uchar* p, int nb, int isdelta, int fset){
 	int n, m;
 
 	pr->max = subpt(pr->max, pr->min);
-	n = cfpt(&pr->min, p, nb, isdelta, fset);
-	m = cfpt(&pr->max, p+n, nb-n, isdelta, fset>>2);
+	n = loadpt(&pr->min, p, nb, isdelta, fset);
+	m = loadpt(&pr->max, p+n, nb-n, isdelta, fset>>2);
 	pr->max = addpt(pr->max, pr->min);
 	return n+m;
 }
 
 static int
-cfclipr(Rectangle* pr, uchar* a, int nb)
+loadclipr(Rectangle* pr, uchar* a, int nb)
 {
 	int bctl;
 	uchar *p, *ep;
@@ -276,7 +276,7 @@ cfclipr(Rectangle* pr, uchar* a, int nb)
 		p += 2;
 	}
 	if(p>ep)
-		sysfatal("cfclipr: %s", Eshort);
+		sysfatal("loadclipr: %s", Eshort);
 	return p-a;
 }
 
@@ -294,18 +294,18 @@ getscrblt(Imgupd* up, uchar* a, uint nb, int ctl, int fset)
 	p = a;
 	ep = a+nb;
 
-	n = cfrect(&wr, p, ep-p, ctl&Diff, fset);
+	n = loadrect(&wr, p, ep-p, ctl&Diff, fset);
 	p += n;
 	if(fset&1<<4){
 		if(ep-p<1)
 			sysfatal(Eshort);
 		rop3 = *p++;
 	}
-	n = cfpt(&wp, p, ep-p, ctl&Diff, fset>>5);
+	n = loadpt(&wp, p, ep-p, ctl&Diff, fset>>5);
 	p += n;
 
 	r = wr;
-	if(ctl&Clipped)
+	if(ctl&Clip)
 		rectclip(&r, gc.clipr);
 
 	if(rop3 != Scopy)
@@ -340,11 +340,11 @@ getmemblt(Imgupd* up, uchar* a, uint nb, int ctl, int fset)
 		cid = igets(p);
 		p += 2;
 	}
-	n = cfrect(&r, p, ep-p, ctl&Diff, fset>>1);
+	n = loadrect(&r, p, ep-p, ctl&Diff, fset>>1);
 	p += n;
 	if(fset&1<<5)
 		rop3 = *p++;
-	n = cfpt(&pt, p, ep-p, ctl&Diff, fset>>6);
+	n = loadpt(&pt, p, ep-p, ctl&Diff, fset>>6);
 	p += n;
 	if(fset&1<<8){
 		coff = igets(p);
@@ -366,9 +366,9 @@ getmemblt(Imgupd* up, uchar* a, uint nb, int ctl, int fset)
 	up->ysz = Dy(r);
 	up->sx = pt.x;
 	up->sy = pt.y;
-	up->clipped = 0;
-	if(ctl&Clipped){
-		up->clipped = 1;
+	up->clip = 0;
+	if(ctl&Clip){
+		up->clip = 1;
 		up->cx = gc.clipr.min.x;
 		up->cy = gc.clipr.min.y;
 		up->cxsz = Dx(gc.clipr);
@@ -391,7 +391,7 @@ getimgcache2(Imgupd* up, uchar* a, uint nb, int xorder, int opt)
 	p = a;
 	ep = a+nb;
 
-	up->iscompr = (xorder==CacheCompressed2);
+	up->compressed = (xorder==CacheCompressed2);
 
 	cid = opt&Bits3;
 	opt >>= 7;
@@ -431,14 +431,14 @@ getimgcache2(Imgupd* up, uchar* a, uint nb, int xorder, int opt)
 		g = ((g&Bits7)<<8) | *p++;
 	coff = g;
 
-	if(up->iscompr && !(opt&1<<3)){
+	if(up->compressed && !(opt&1<<3)){
 		p += 8;	// bitmapComprHdr
 		size -= 8;
 	}
 	if(p+size > ep)
 		sysfatal("cacheimage2: size: %s", Eshort);
 
-	up->type = Uicache;
+	up->type = Ucacheimg;
 	up->cid = cid;
 	up->coff = coff;
 	up->nbytes = size;
@@ -466,4 +466,3 @@ getcmapcache(Imgupd* up, uchar* a, uint nb, int xorder, int opt)
 	up->nbytes = 4*256;
 	return 9+4*256;
 }
-

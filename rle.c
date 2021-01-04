@@ -138,7 +138,7 @@ unrle(uchar* d, int nd, uchar* s, int ns, int bpl, int pixelsize)
 		len *= pixelsize;
 		if(wp+len > we){
 		   Overrun:
-			werrstr("unrle: output buffer is %uld bytes short", wp+len-we);
+			werrstr("unrle: output buffer is %zd bytes short", (intptr)(wp+len-we));
 			return nil;
 		}
 

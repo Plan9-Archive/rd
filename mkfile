@@ -1,5 +1,5 @@
 </$objtype/mkfile
-<$PLAN9/src/mkhdr
+#<$PLAN9/src/mkhdr
 
 TARG=rd
 BIN=/$objtype/bin
@@ -34,7 +34,7 @@ THREADOFILES=${OFILES:rd.$O=rd-thread.$O}
 CLEANFILES=$O.thread
 
 </sys/src/cmd/mkone
-<$PLAN9/src/mkone
+#<$PLAN9/src/mkone
 
 $TARG: mkfile
 
